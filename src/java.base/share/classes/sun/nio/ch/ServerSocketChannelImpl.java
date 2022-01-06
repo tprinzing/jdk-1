@@ -51,12 +51,12 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
+import jdk.internal.event.SocketAcceptEvent;
+import sun.net.NetHooks;
+import sun.net.ext.ExtendedSocketOptions;
 import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
 import static java.net.StandardProtocolFamily.UNIX;
-
-import sun.net.NetHooks;
-import sun.net.ext.ExtendedSocketOptions;
 
 /**
  * An implementation of ServerSocketChannels
@@ -379,6 +379,25 @@ class ServerSocketChannelImpl
 
     @Override
     public SocketChannel accept() throws IOException {
+        if (SocketAcceptEvent.isTurnedOFF()) {
+            return implAccept();
+        } else {
+            var event = new SocketAcceptEvent();
+            SocketChannelImpl sc = null;
+            Exception ex = null;
+            try {
+                sc = implAccept();
+            } catch (Exception ioe) {
+                ex = ioe;
+                throw ioe;
+            } finally {
+                EventSupport.writeAcceptEvent(event, fd, sc.getRemoteAddress(), sc.getFD(), ex);
+            }
+            return sc;
+        }
+    }
+
+    private final SocketChannelImpl implAccept() throws IOException {
         int n = 0;
         FileDescriptor newfd = new FileDescriptor();
         SocketAddress[] saa = new SocketAddress[1];
@@ -388,11 +407,11 @@ class ServerSocketChannelImpl
             boolean blocking = isBlocking();
             try {
                 begin(blocking);
-                n = implAccept(this.fd, newfd, saa);
+                n = justAccept(this.fd, newfd, saa);
                 if (blocking) {
                     while (IOStatus.okayToRetry(n) && isOpen()) {
                         park(Net.POLLIN);
-                        n = implAccept(this.fd, newfd, saa);
+                        n = justAccept(this.fd, newfd, saa);
                     }
                 }
             } finally {
@@ -410,7 +429,7 @@ class ServerSocketChannelImpl
         }
     }
 
-    private int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] saa)
+    private int justAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] saa)
         throws IOException
     {
         if (isUnixSocket()) {
@@ -427,6 +446,22 @@ class ServerSocketChannelImpl
                 saa[0] = issa[0];
             return n;
         }
+    }
+
+    private int implBlockingAccept(FileDescriptor newfd, SocketAddress[] saa, long nanos)
+        throws IOException
+    {
+        long startNanos = System.nanoTime();
+        int n = justAccept(fd, newfd, saa);
+        while (n == IOStatus.UNAVAILABLE && isOpen()) {
+            long remainingNanos = nanos - (System.nanoTime() - startNanos);
+            if (remainingNanos <= 0) {
+                throw new SocketTimeoutException("Accept timed out");
+            }
+            park(Net.POLLIN, remainingNanos);
+            n = justAccept(fd, newfd, saa);
+        }
+        return n;
     }
 
     /**
@@ -455,15 +490,20 @@ class ServerSocketChannelImpl
                 // change socket to non-blocking
                 lockedConfigureBlocking(false);
                 try {
-                    long startNanos = System.nanoTime();
-                    n = implAccept(fd, newfd, saa);
-                    while (n == IOStatus.UNAVAILABLE && isOpen()) {
-                        long remainingNanos = nanos - (System.nanoTime() - startNanos);
-                        if (remainingNanos <= 0) {
-                            throw new SocketTimeoutException("Accept timed out");
+                    if (SocketAcceptEvent.isTurnedOFF()) {
+                        n = implBlockingAccept(newfd, saa, nanos);
+                    } else {
+                        var event = new SocketAcceptEvent();
+                        String exceptionMessage = null;
+                        try {
+                            event.begin();
+                            n = implBlockingAccept(newfd, saa, nanos);
+                        } catch (IOException ioe) {
+                            exceptionMessage = ioe.getMessage();
+                            throw ioe;
+                        } finally {
+                            //EventSupport.writeAcceptEvent(event, fd, saa[0], n > 0, exceptionMessage); << FIX
                         }
-                        park(Net.POLLIN, remainingNanos);
-                        n = implAccept(fd, newfd, saa);
                     }
                 } finally {
                     // restore socket to blocking mode (if channel is open)
@@ -480,7 +520,7 @@ class ServerSocketChannelImpl
         return finishAccept(newfd, saa[0]);
     }
 
-    private SocketChannel finishAccept(FileDescriptor newfd, SocketAddress sa)
+    private SocketChannelImpl finishAccept(FileDescriptor newfd, SocketAddress sa)
         throws IOException
     {
         try {

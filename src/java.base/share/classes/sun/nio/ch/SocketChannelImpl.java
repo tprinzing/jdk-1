@@ -59,6 +59,9 @@ import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
 import static java.net.StandardProtocolFamily.UNIX;
 
+import jdk.internal.event.SocketConnectEndEvent;
+import jdk.internal.event.SocketConnectEvent;
+import jdk.internal.vm.annotation.ForceInline;
 import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
 import sun.net.ext.ExtendedSocketOptions;
@@ -837,6 +840,32 @@ class SocketChannelImpl
     @Override
     public boolean connect(SocketAddress remote) throws IOException {
         SocketAddress sa = checkRemote(remote);
+        if (SocketConnectEvent.isTurnedOFF()) {
+            return implConnect(sa);
+        } else {
+            var event = new SocketConnectEvent();
+            boolean connected = false;
+            Exception ex = null;
+            try {
+                event.begin();
+                connected = implConnect(sa);
+            } catch (Exception e) {
+                ex = e;
+                throw e;
+            } finally {
+                if (connected || ex != null) {
+                    EventSupport.writeConnectEvent(event, fd, remote, ex);
+                } else {
+                    // ####: we're dropping SocketConnectEvent here. Could be
+                    // better to defer creation and only get timestamp
+                    EventSupport.writeConnectStartEvent(fd, remote);
+                }
+            }
+            return connected;
+        }
+    }
+
+    public final boolean implConnect(SocketAddress sa) throws IOException {
         try {
             readLock.lock();
             try {
@@ -930,6 +959,26 @@ class SocketChannelImpl
 
     @Override
     public boolean finishConnect() throws IOException {
+        if (SocketConnectEndEvent.isTurnedOFF()) {
+            return implFinishConnect();
+        } else {
+            boolean connected = false;
+            Exception ex = null;
+            try {
+                connected = implFinishConnect();
+            } catch (Exception e) {
+                ex = e;
+                throw e;
+            } finally {
+                if (SocketConnectEndEvent.isTurnedOn() && (connected || ex != null)) {
+                    EventSupport.writeConnectEndEvent(fd, remoteAddress, ex);
+                }
+            }
+            return connected;
+        }
+    }
+
+    private final boolean implFinishConnect() throws IOException {
         try {
             readLock.lock();
             try {

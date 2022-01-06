@@ -49,7 +49,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-
+import jdk.internal.event.SocketAcceptEvent;
+import jdk.internal.event.SocketConnectEvent;
 import jdk.internal.ref.CleanerFactory;
 import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
@@ -548,6 +549,36 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         return polled && isOpen();
     }
 
+    private final boolean implConnect(FileDescriptor fd,
+                                      InetAddress address,
+                                      int port,
+                                      int millis)
+        throws IOException
+    {
+        boolean connected;
+        int n = Net.connect(fd, address, port);
+        if (n > 0) {
+            // connection established
+            connected = true;
+        } else {
+            assert IOStatus.okayToRetry(n);
+            if (millis > 0) {
+                // finish connect with timeout
+                long nanos = MILLISECONDS.toNanos(millis);
+                connected = timedFinishConnect(fd, nanos);
+            } else {
+                // finish connect, no timeout
+                boolean polled = false;
+                while (!polled && isOpen()) {
+                    park(fd, Net.POLLOUT);
+                    polled = Net.pollConnectNow(fd);
+                }
+                connected = polled && isOpen();
+            }
+        }
+        return connected;
+    }
+
     /**
      * Attempts to establish a connection to the given socket address with a
      * timeout. Closes the socket if connection cannot be established.
@@ -582,27 +613,23 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                         configureNonBlocking(fd);
                     }
 
-                    int n = Net.connect(fd, address, port);
-                    if (n > 0) {
-                        // connection established
-                        connected = true;
+                    if (SocketConnectEvent.isTurnedOFF()) {
+                        connected = implConnect(fd, address, port, millis);
                     } else {
-                        assert IOStatus.okayToRetry(n);
-                        if (millis > 0) {
-                            // finish connect with timeout
-                            long nanos = MILLISECONDS.toNanos(millis);
-                            connected = timedFinishConnect(fd, nanos);
-                        } else {
-                            // finish connect, no timeout
-                            boolean polled = false;
-                            while (!polled && isOpen()) {
-                                park(fd, Net.POLLOUT);
-                                polled = Net.pollConnectNow(fd);
-                            }
-                            connected = polled && isOpen();
+                        var event = new SocketConnectEvent();
+                        boolean completed = false;
+                        Exception ex = null;
+                        try {
+                            event.begin();
+                            connected = implConnect(fd, address, port, millis);
+                            completed = true;
+                        } catch (IOException ioe) {
+                            ex = ioe;
+                            throw ioe;
+                        } finally {
+                            EventSupport.writeConnectEvent(event, fd, address, port, ex);  // TODO: come back, push this up
                         }
                     }
-
                     // restore socket to blocking mode
                     if (connected && millis > 0) {
                         configureBlocking(fd);
@@ -710,6 +737,27 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         return n;
     }
 
+    private final int implAccept(FileDescriptor newfd,
+                                 InetSocketAddress[] isaa,
+                                 long remainingNanos)
+        throws IOException
+    {
+        int n;
+        if (remainingNanos > 0) {
+            // accept with timeout
+            configureNonBlocking(fd);
+            n = timedAccept(fd, newfd, isaa, remainingNanos);
+        } else {
+            // accept, no timeout
+            n = Net.accept(fd, newfd, isaa);
+            while (IOStatus.okayToRetry(n) && isOpen()) {
+                park(fd, Net.POLLIN);
+                n = Net.accept(fd, newfd, isaa);
+            }
+        }
+        return n;
+    }
+
     /**
      * Accepts a new connection so that the given SocketImpl is connected to
      * the peer. The SocketImpl must be a newly created NioSocketImpl.
@@ -732,7 +780,9 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             remainingNanos = tryLock(acceptLock, timeout, MILLISECONDS);
             if (remainingNanos <= 0) {
                 assert !acceptLock.isHeldByCurrentThread();
-                throw new SocketTimeoutException("Accept timed out");
+                var ex = new SocketTimeoutException("Accept timed out");
+                EventSupport.writeAcceptEvent(new SocketAcceptEvent(), fd, address, port, null, ex);
+                throw ex;
             }
         } else {
             acceptLock.lock();
@@ -743,16 +793,19 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             int n = 0;
             FileDescriptor fd = beginAccept();
             try {
-                if (remainingNanos > 0) {
-                    // accept with timeout
-                    configureNonBlocking(fd);
-                    n = timedAccept(fd, newfd, isaa, remainingNanos);
+                if (SocketAcceptEvent.isTurnedOFF()) {
+                    n = implAccept(newfd, isaa, remainingNanos);
                 } else {
-                    // accept, no timeout
-                    n = Net.accept(fd, newfd, isaa);
-                    while (IOStatus.okayToRetry(n) && isOpen()) {
-                        park(fd, Net.POLLIN);
-                        n = Net.accept(fd, newfd, isaa);
+                    var event = new SocketAcceptEvent();
+                    Exception ex = null;
+                    try {
+                        event.begin();
+                        n = implAccept(newfd, isaa, remainingNanos);
+                    } catch (Exception ioe) {
+                        ex = ioe;
+                        throw ioe;
+                    } finally {
+                        EventSupport.writeAcceptEvent(event, fd, address, port, newfd, ex);
                     }
                 }
             } finally {

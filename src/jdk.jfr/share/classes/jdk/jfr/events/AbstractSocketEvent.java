@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,22 +25,11 @@
 
 package jdk.jfr.events;
 
-import jdk.jfr.Category;
-import jdk.jfr.Description;
 import jdk.jfr.Label;
-import jdk.jfr.DataAmount;
-import jdk.jfr.Name;
-import jdk.jfr.Timespan;
-import jdk.jfr.internal.Type;
 
-@Name(Type.EVENT_NAME_PREFIX + "SocketRead")
-@Label("Socket Read")
-@Category("Java Application")
-@Description("Reading data from a socket")
-public final class SocketReadEvent extends AbstractJDKEvent {
+public abstract class AbstractSocketEvent extends AbstractJDKEvent {
 
-    // The order of these fields must be the same as the parameters in
-    // EventHandler::write(..., int, String, String, int, long, long, boolean, String)
+    protected AbstractSocketEvent() { }
 
     @SocketId
     @Label("id")
@@ -55,19 +44,9 @@ public final class SocketReadEvent extends AbstractJDKEvent {
     @Label("Remote Port")
     public int port;
 
-    @Label("Timeout Value")
-    @Timespan(Timespan.MILLISECONDS)
-    public long timeout;
-
-    @Label("Bytes Read")
-    @Description("Number of bytes read from the socket")
-    @DataAmount
-    public long bytesRead;
-
-    @Label("End of Stream")
-    @Description("If end of stream was reached")
-    public boolean endOfStream;
-
-    @Label("Exception Message")
-    public String exceptionMessage;
+//    @Label("Local Address")
+//    public String localAddress;
+//
+//    @Label("Local Port")
+//    public int localPort;
 }
