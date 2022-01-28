@@ -32,7 +32,14 @@ import jdk.jfr.ValueDescriptor;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingStream;
 
-class TestSocketEvents {
+/**
+ * @test
+ * @summary Bug summary
+ * @compile TestSocketEvents.java
+ * @run main TestSocketEvents
+ * 
+ */
+public class TestSocketEvents {
 
     interface ThrowingRunnable {
         void run() throws Exception;
