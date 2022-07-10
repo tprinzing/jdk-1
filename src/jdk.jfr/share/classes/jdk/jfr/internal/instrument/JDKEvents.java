@@ -116,7 +116,8 @@ public final class JDKEvents {
         FileChannelImplInstrumentor.class,
         SocketInputStreamInstrumentor.class,
         SocketOutputStreamInstrumentor.class,
-        SocketChannelImplInstrumentor.class
+        SocketChannelImplInstrumentor.class,
+        DatagramChannelImplInstrumentor.class
     };
 
     private static final Class<?>[] targetClasses = new Class<?>[instrumentationClasses.length];
