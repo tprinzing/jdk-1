@@ -45,6 +45,38 @@ final class DatagramChannelImplInstrumentor {
 
     @SuppressWarnings("deprecation")
     @JIInstrumentationMethod
+    SocketAddress blockingReceive(ByteBuffer dst, long nanos) throws IOException {
+        EventConfiguration eventConfiguration = EventConfigurations.SOCKET_READ;
+        if (!eventConfiguration.isEnabled()) {
+            return blockingReceive(dst, nanos);
+        }
+        int bytesRead = 0;
+        long start  = 0;
+        SocketAddress remoteAddress = null;
+        try {
+            long pos = dst.position();
+            start = EventConfiguration.timestamp();;
+            remoteAddress = blockingReceive(dst, nanos);
+            bytesRead = (int) (dst.position() - pos);
+        } finally {
+            long duration = EventConfiguration.timestamp() - start;
+            if (eventConfiguration.shouldCommit(duration))  {
+                if (remoteAddress instanceof InetSocketAddress isa) {
+                    String hostString  = isa.getAddress().toString();
+                    int delimiterIndex = hostString.lastIndexOf('/');
+
+                    String host = hostString.substring(0, delimiterIndex);
+                    String address = hostString.substring(delimiterIndex + 1);
+                    int port = isa.getPort();
+                    SocketReadEvent.commit(start, duration, host, address, port, 0, bytesRead, false);
+                }
+            }
+        }
+        return remoteAddress;
+    }
+
+    @SuppressWarnings("deprecation")
+    @JIInstrumentationMethod
     public SocketAddress receive(ByteBuffer dst) throws IOException {
         EventConfiguration eventConfiguration = EventConfigurations.SOCKET_READ;
         if (!eventConfiguration.isEnabled()) {
@@ -75,7 +107,7 @@ final class DatagramChannelImplInstrumentor {
         return remoteAddress;
     }
 
-        @SuppressWarnings("deprecation")
+    @SuppressWarnings("deprecation")
     @JIInstrumentationMethod
     public int read(ByteBuffer dst) throws IOException {
         EventConfiguration eventConfiguration = EventConfigurations.SOCKET_READ;
@@ -173,7 +205,7 @@ final class DatagramChannelImplInstrumentor {
         return bytesWritten;
     }
 
-        @SuppressWarnings("deprecation")
+    @SuppressWarnings("deprecation")
     @JIInstrumentationMethod
     public int write(ByteBuffer buf) throws IOException {
         EventConfiguration eventConfiguration = EventConfigurations.SOCKET_WRITE;
