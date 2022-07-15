@@ -26,7 +26,6 @@
 package jdk.jfr.internal.instrument;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.Socket;
 
 import jdk.jfr.events.EventConfigurations;
@@ -55,19 +54,7 @@ final class SocketInputStreamInstrumentor {
             start = EventConfiguration.timestamp();
             bytesRead = read(b, off, length);
         } finally {
-            long duration = EventConfiguration.timestamp() - start;
-            if (eventConfiguration.shouldCommit(duration)) {
-                InetAddress remote = parent.getInetAddress();
-                String host = remote.getHostName();
-                String address = remote.getHostAddress();
-                int port = parent.getPort();
-                int timeout = parent.getSoTimeout();
-                if (bytesRead < 0) {
-                    SocketReadEvent.commit(start, duration, host, address, port, timeout, 0L, true);
-                } else {
-                    SocketReadEvent.commit(start, duration, host, address, port, timeout, bytesRead, false);
-                }
-            }
+            SocketReadEvent.processEvent(start, bytesRead, parent.getRemoteSocketAddress());
         }
         return bytesRead;
     }

@@ -59,18 +59,7 @@ final class DatagramChannelImplInstrumentor {
             remoteAddress = blockingReceive(dst, nanos);
             bytesRead = (int) (dst.position() - pos);
         } finally {
-            long duration = EventConfiguration.timestamp() - start;
-            if (eventConfiguration.shouldCommit(duration))  {
-                if (remoteAddress instanceof InetSocketAddress isa) {
-                    String hostString  = isa.getAddress().toString();
-                    int delimiterIndex = hostString.lastIndexOf('/');
-
-                    String host = hostString.substring(0, delimiterIndex);
-                    String address = hostString.substring(delimiterIndex + 1);
-                    int port = isa.getPort();
-                    SocketReadEvent.commit(start, duration, host, address, port, 0, bytesRead, false);
-                }
-            }
+            SocketReadEvent.processEvent(start, bytesRead, remoteAddress);
         }
         return remoteAddress;
     }
@@ -91,18 +80,7 @@ final class DatagramChannelImplInstrumentor {
             remoteAddress = receive(dst);
             bytesRead = (int) (dst.position() - pos);
         } finally {
-            long duration = EventConfiguration.timestamp() - start;
-            if (eventConfiguration.shouldCommit(duration))  {
-                if (remoteAddress instanceof InetSocketAddress isa) {
-                    String hostString  = isa.getAddress().toString();
-                    int delimiterIndex = hostString.lastIndexOf('/');
-
-                    String host = hostString.substring(0, delimiterIndex);
-                    String address = hostString.substring(delimiterIndex + 1);
-                    int port = isa.getPort();
-                    SocketReadEvent.commit(start, duration, host, address, port, 0, bytesRead, false);
-                }
-            }
+            SocketReadEvent.processEvent(start, bytesRead, remoteAddress);
         }
         return remoteAddress;
     }
@@ -120,23 +98,7 @@ final class DatagramChannelImplInstrumentor {
             start = EventConfiguration.timestamp();;
             bytesRead = read(dst);
         } finally {
-            long duration = EventConfiguration.timestamp() - start;
-            if (eventConfiguration.shouldCommit(duration))  {
-                SocketAddress remoteAddress = getRemoteAddress();
-                if (remoteAddress instanceof InetSocketAddress isa) {
-                    String hostString  = isa.getAddress().toString();
-                    int delimiterIndex = hostString.lastIndexOf('/');
-
-                    String host = hostString.substring(0, delimiterIndex);
-                    String address = hostString.substring(delimiterIndex + 1);
-                    int port = isa.getPort();
-                    if (bytesRead < 0) {
-                        SocketReadEvent.commit(start, duration, host, address, port, 0, 0L, true);
-                    } else {
-                        SocketReadEvent.commit(start, duration, host, address, port, 0, bytesRead, false);
-                    }
-                }
-            }
+            SocketReadEvent.processEvent(start, bytesRead, getRemoteAddress());
         }
         return bytesRead;
     }
@@ -154,23 +116,7 @@ final class DatagramChannelImplInstrumentor {
             start = EventConfiguration.timestamp();
             bytesRead = read(dsts, offset, length);
         } finally {
-            long duration = EventConfiguration.timestamp() - start;
-            if (eventConfiguration.shouldCommit(duration)) {
-                SocketAddress remoteAddress = getRemoteAddress();
-                if (remoteAddress instanceof InetSocketAddress isa) {
-                    String hostString  = isa.getAddress().toString();
-                    int delimiterIndex = hostString.lastIndexOf('/');
-
-                    String host = hostString.substring(0, delimiterIndex);
-                    String address = hostString.substring(delimiterIndex + 1);
-                    int port = isa.getPort();
-                    if (bytesRead < 0) {
-                        SocketReadEvent.commit(start, duration, host, address, port, 0, 0L, true);
-                    } else {
-                        SocketReadEvent.commit(start, duration, host, address, port, 0, bytesRead, false);
-                    }
-                }
-            }
+            SocketReadEvent.processEvent(start, bytesRead, getRemoteAddress());
         }
         return bytesRead;
     }
@@ -188,19 +134,7 @@ final class DatagramChannelImplInstrumentor {
             start = EventConfiguration.timestamp();
             bytesWritten = send(src, target);
         } finally {
-            long duration = EventConfiguration.timestamp() - start;
-            if (eventConfiguration.shouldCommit(duration)) {
-                long bytes = bytesWritten < 0 ? 0 : bytesWritten;
-                if (target instanceof InetSocketAddress isa) {
-                    String hostString  = isa.getAddress().toString();
-                    int delimiterIndex = hostString.lastIndexOf('/');
-
-                    String host = hostString.substring(0, delimiterIndex);
-                    String address = hostString.substring(delimiterIndex + 1);
-                    int port = isa.getPort();
-                    SocketWriteEvent.commit(start, duration, host, address, port, bytes);
-                }
-            }
+            SocketWriteEvent.processEvent(start, bytesWritten, target);
         }
         return bytesWritten;
     }
@@ -218,20 +152,7 @@ final class DatagramChannelImplInstrumentor {
             start = EventConfiguration.timestamp();
             bytesWritten = write(buf);
         } finally {
-            long duration = EventConfiguration.timestamp() - start;
-            if (eventConfiguration.shouldCommit(duration)) {
-                long bytes = bytesWritten < 0 ? 0 : bytesWritten;
-                SocketAddress remoteAddress = getRemoteAddress();
-                if (remoteAddress instanceof InetSocketAddress isa) {
-                    String hostString  = isa.getAddress().toString();
-                    int delimiterIndex = hostString.lastIndexOf('/');
-
-                    String host = hostString.substring(0, delimiterIndex);
-                    String address = hostString.substring(delimiterIndex + 1);
-                    int port = isa.getPort();
-                    SocketWriteEvent.commit(start, duration, host, address, port, bytes);
-                }
-            }
+            SocketWriteEvent.processEvent(start, bytesWritten, getRemoteAddress());
         }
         return bytesWritten;
     }
@@ -254,20 +175,7 @@ final class DatagramChannelImplInstrumentor {
             start = EventConfiguration.timestamp();
             bytesWritten = write(srcs, offset, length);
         } finally {
-            long duration = EventConfiguration.timestamp() - start;
-            if (eventConfiguration.shouldCommit(duration)) {
-                long bytes = bytesWritten < 0 ? 0 : bytesWritten;
-                SocketAddress remoteAddress = getRemoteAddress();
-                if (remoteAddress instanceof InetSocketAddress isa) {
-                    String hostString  = isa.getAddress().toString();
-                    int delimiterIndex = hostString.lastIndexOf('/');
-
-                    String host = hostString.substring(0, delimiterIndex);
-                    String address = hostString.substring(delimiterIndex + 1);
-                    int port = isa.getPort();
-                    SocketWriteEvent.commit(start, duration, host, address, port, bytes);
-                }
-            }
+            SocketWriteEvent.processEvent(start, bytesWritten, getRemoteAddress());
         }
         return bytesWritten;
     }

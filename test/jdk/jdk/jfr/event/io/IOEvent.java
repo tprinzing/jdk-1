@@ -100,6 +100,13 @@ public class IOEvent {
         return new IOEvent(Thread.currentThread().getName(), EventType.SocketWrite, Math.max(0,size), getAddressString(addr), false);
     }
 
+    public static IOEvent createSocketWriteEvent(long size, SocketAddress sa) {
+        if (size < 0) {
+            size = 0;
+        }
+        return new IOEvent(Thread.currentThread().getName(), EventType.SocketWrite, size, getAddressString((InetSocketAddress) sa), false);
+    }
+
     public static IOEvent createSocketWriteEvent(long size, Socket s) {
         if (size < 0) {
             size = 0;
@@ -109,6 +116,15 @@ public class IOEvent {
 
     public static IOEvent createDatagramReadEvent(long size, InetSocketAddress addr) {
         return new IOEvent(Thread.currentThread().getName(), EventType.SocketRead, Math.max(0,size), getAddressString(addr), false);
+    }
+
+    public static IOEvent createSocketReadEvent(long size, SocketAddress sa) {
+        boolean endOfStream = false;
+        if (size < 0) {
+            size = 0;
+            endOfStream = true;
+        }
+        return new IOEvent(Thread.currentThread().getName(), EventType.SocketRead, size, getAddressString((InetSocketAddress) sa), endOfStream);
     }
 
     public static IOEvent createSocketReadEvent(long size, Socket s) {

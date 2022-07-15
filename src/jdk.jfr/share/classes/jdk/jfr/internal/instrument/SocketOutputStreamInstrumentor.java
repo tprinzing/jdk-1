@@ -26,7 +26,6 @@
 package jdk.jfr.internal.instrument;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.Socket;
 
 import jdk.jfr.events.EventConfigurations;
@@ -57,17 +56,7 @@ final class SocketOutputStreamInstrumentor {
             write(b, off, len);
             bytesWritten = len;
         } finally {
-            long duration = EventConfiguration.timestamp() - start;
-            if (eventConfiguration.shouldCommit(duration)) {
-                InetAddress remote = parent.getInetAddress();
-                SocketWriteEvent.commit(
-                        start,
-                        duration,
-                        remote.getHostName(),
-                        remote.getHostAddress(),
-                        parent.getPort(),
-                        bytesWritten);
-            }
+            SocketWriteEvent.processEvent(start, bytesWritten, parent.getRemoteSocketAddress());
         }
     }
 

@@ -31,6 +31,11 @@ import jdk.jfr.Label;
 import jdk.jfr.DataAmount;
 import jdk.jfr.Name;
 import jdk.jfr.internal.Type;
+import jdk.jfr.internal.event.EventConfiguration;
+
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.net.UnixDomainSocketAddress;
 
 @Name(Type.EVENT_NAME_PREFIX + "SocketWrite")
 @Label("Socket Write")
@@ -57,5 +62,33 @@ public final class SocketWriteEvent extends AbstractJDKEvent {
 
     public static void commit(long start, long duration, String host, String address, int port, long bytes) {
         // Generated
+    }
+
+    /**
+     * Execute the standard boilerplate that proceeds a potential call to the machine generated
+     * commit method.
+     *
+     * @param start  the start time
+     * @param bytesWritten  how many bytes were sent
+     * @param remote  the address of the remote socket being written to
+     */
+    public static void processEvent(long start, long bytesWritten, SocketAddress remote) {
+        long duration = EventConfiguration.timestamp() - start;
+        if (EventConfigurations.SOCKET_WRITE.shouldCommit(duration)) {
+            long bytes = bytesWritten < 0 ? 0 : bytesWritten;
+            if (remote instanceof InetSocketAddress isa) {
+                String hostString  = isa.getAddress().toString();
+                int delimiterIndex = hostString.lastIndexOf('/');
+
+                String host = hostString.substring(0, delimiterIndex);
+                String address = hostString.substring(delimiterIndex + 1);
+                int port = isa.getPort();
+                SocketWriteEvent.commit(start, duration, host, address, port, bytes);
+            } else if (remote instanceof UnixDomainSocketAddress) {
+                UnixDomainSocketAddress udsa = (UnixDomainSocketAddress) remote;
+                String path = "[" + udsa.getPath().toString() + "]";
+                SocketWriteEvent.commit(start, duration, "Unix domain socket", path, 0, bytes);
+            }
+        }
     }
 }
