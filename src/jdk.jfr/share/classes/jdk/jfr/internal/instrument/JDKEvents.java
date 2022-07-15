@@ -117,6 +117,7 @@ public final class JDKEvents {
         SocketInputStreamInstrumentor.class,
         SocketOutputStreamInstrumentor.class,
         SocketChannelImplInstrumentor.class,
+        AsynchronousSocketChannelImplInstrumentor.class,
         DatagramChannelImplInstrumentor.class
     };
 
