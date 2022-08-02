@@ -48,7 +48,7 @@ import jdk.test.lib.thread.XRun;
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib /test/jdk
- * @run main/othervm jdk.jfr.event.io.TestAsynchronousSocketChannelEvents
+ * @run main/othervm -Xlog:jfr+system=trace jdk.jfr.event.io.TestAsynchronousSocketChannelEvents
  */
 public class TestAsynchronousSocketChannelEvents {
     private static final int bufSizeA = 10;
@@ -136,7 +136,7 @@ public class TestAsynchronousSocketChannelEvents {
                 recording.stop();
                 List<RecordedEvent> events = Events.fromRecording(recording);
                 // AsynchronousSocketChannelImpl is failing to be instrumented currently
-                //IOHelper.verifyEquals(events, expectedEvents);
+                IOHelper.verifyEquals(events, expectedEvents);
             }
         }
     }
