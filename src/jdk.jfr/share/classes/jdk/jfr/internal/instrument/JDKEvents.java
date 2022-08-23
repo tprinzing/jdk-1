@@ -113,12 +113,7 @@ public final class JDKEvents {
         FileInputStreamInstrumentor.class,
         FileOutputStreamInstrumentor.class,
         RandomAccessFileInstrumentor.class,
-        FileChannelImplInstrumentor.class,
-        SocketInputStreamInstrumentor.class,
-        SocketOutputStreamInstrumentor.class,
-        SocketChannelImplInstrumentor.class,
-        AsynchronousSocketChannelImplInstrumentor.class,
-        DatagramChannelImplInstrumentor.class
+        FileChannelImplInstrumentor.class
     };
 
     private static final Class<?>[] targetClasses = new Class<?>[instrumentationClasses.length];

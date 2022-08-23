@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,43 +22,28 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+package jdk.jfr.internal.spi;
 
-package jdk.jfr.internal.instrument;
-
-import java.io.IOException;
-import java.net.Socket;
 
 import jdk.jfr.events.EventConfigurations;
-import jdk.jfr.events.SocketReadEvent;
 import jdk.jfr.internal.event.EventConfiguration;
 
-/**
- * See {@link JITracer} for an explanation of this code.
- */
-@JIInstrumentationTarget("java.net.Socket$SocketInputStream")
-final class SocketInputStreamInstrumentor {
+import java.net.SocketAddress;
 
-    private SocketInputStreamInstrumentor() {
+public class SocketReadEventService implements jdk.internal.event.SocketReadEvent.Provider {
+    @Override
+    public boolean isEnabled() {
+        EventConfiguration config = EventConfigurations.SOCKET_READ;
+        return (config != null) ? config.isEnabled() : false;
     }
 
-    @SuppressWarnings("deprecation")
-    @JIInstrumentationMethod
-    public int read(byte b[], int off, int length) throws IOException {
-        EventConfiguration eventConfiguration = EventConfigurations.SOCKET_READ;
-        if (!eventConfiguration.isEnabled()) {
-            return read(b, off, length);
-        }
-        int bytesRead = 0;
-        long start = 0;
-        try {
-            start = EventConfiguration.timestamp();
-            bytesRead = read(b, off, length);
-        } finally {
-            SocketReadEvent.processEvent(start, bytesRead, parent.getRemoteSocketAddress());
-        }
-        return bytesRead;
+    @Override
+    public long timestamp() {
+        return EventConfiguration.timestamp();
     }
 
-    // private field in java.net.Socket$SocketInputStream
-    private Socket parent;
+    @Override
+    public void processEvent(long start, long bytesRead, SocketAddress remote) {
+        jdk.jfr.events.SocketReadEvent.processEvent(start, bytesRead, remote);
+    }
 }

@@ -25,6 +25,8 @@
 
 package java.net;
 
+import jdk.internal.event.SocketReadEvent;
+import jdk.internal.event.SocketWriteEvent;
 import sun.security.util.SecurityConstants;
 
 import java.io.InputStream;
@@ -1019,8 +1021,24 @@ public class Socket implements java.io.Closeable {
             int n = read(a, 0, 1);
             return (n > 0) ? (a[0] & 0xff) : -1;
         }
+
         @Override
         public int read(byte[] b, int off, int len) throws IOException {
+            if (!SocketReadEvent.isEnabled()) {
+                return readImpl(b, off, len);
+            }
+            int bytesRead = 0;
+            long start = 0;
+            try {
+                start = SocketReadEvent.timestamp();
+                bytesRead = readImpl(b, off, len);
+            } finally {
+                SocketReadEvent.processEvent(start, bytesRead, parent.getRemoteSocketAddress());
+            }
+            return bytesRead;
+        }
+
+        private int readImpl(byte[] b, int off, int len) throws IOException {
             try {
                 return in.read(b, off, len);
             } catch (SocketTimeoutException e) {
@@ -1114,8 +1132,25 @@ public class Socket implements java.io.Closeable {
             byte[] a = new byte[] { (byte) b };
             write(a, 0, 1);
         }
+
         @Override
         public void write(byte[] b, int off, int len) throws IOException {
+            if (!SocketWriteEvent.isEnabled()) {
+                writeImpl(b, off, len);
+                return;
+            }
+            int bytesWritten = 0;
+            long start = 0;
+            try {
+                start = SocketWriteEvent.timestamp();
+                writeImpl(b, off, len);
+                bytesWritten = len;
+            } finally {
+                SocketWriteEvent.processEvent(start, bytesWritten, parent.getRemoteSocketAddress());
+            }
+        }
+
+        private void writeImpl(byte[] b, int off, int len) throws IOException {
             try {
                 out.write(b, off, len);
             } catch (InterruptedIOException e) {
