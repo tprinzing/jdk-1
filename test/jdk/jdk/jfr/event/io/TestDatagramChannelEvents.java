@@ -59,8 +59,8 @@ public class TestDatagramChannelEvents {
 
     public void testUnconnected() throws Throwable {
         try (Recording recording = new Recording()) {
-            recording.enable(IOEvent.EVENT_SOCKET_READ).withThreshold(Duration.ofMillis(0));
-            recording.enable(IOEvent.EVENT_SOCKET_WRITE).withThreshold(Duration.ofMillis(0));
+            recording.enable(IOEvent.EVENT_DATAGRAM_RECEIVE).withThreshold(Duration.ofMillis(0));
+            recording.enable(IOEvent.EVENT_DATAGRAM_SEND).withThreshold(Duration.ofMillis(0));
             recording.start();
             try (DatagramChannel server = DatagramChannel.open()) {
                 server.bind(new InetSocketAddress("localhost", 0));
@@ -79,6 +79,8 @@ public class TestDatagramChannelEvents {
 
                     recording.stop();
                     List<RecordedEvent> events = Events.fromRecording(recording);
+                    System.out.println("**** --> "+events+"  \n");
+                    System.out.flush();
                     IOHelper.verifyEquals(events, expectedEvents);
                 }
             }
@@ -86,8 +88,8 @@ public class TestDatagramChannelEvents {
     }
     public void testConnected() throws Throwable {
         try (Recording recording = new Recording()) {
-            recording.enable(IOEvent.EVENT_SOCKET_READ).withThreshold(Duration.ofMillis(0));
-            recording.enable(IOEvent.EVENT_SOCKET_WRITE).withThreshold(Duration.ofMillis(0));
+            recording.enable(IOEvent.EVENT_DATAGRAM_RECEIVE).withThreshold(Duration.ofMillis(0));
+            recording.enable(IOEvent.EVENT_DATAGRAM_SEND).withThreshold(Duration.ofMillis(0));
             recording.start();
             try (DatagramChannel server = DatagramChannel.open()) {
                 server.bind(new InetSocketAddress("localhost", 0));

@@ -25,8 +25,7 @@
 
 package java.net;
 
-import jdk.internal.event.SocketReadEvent;
-import jdk.internal.event.SocketWriteEvent;
+import jdk.internal.event.EventGateway;
 import sun.security.util.SecurityConstants;
 
 import java.io.InputStream;
@@ -1024,16 +1023,17 @@ public class Socket implements java.io.Closeable {
 
         @Override
         public int read(byte[] b, int off, int len) throws IOException {
-            if (!SocketReadEvent.isEnabled()) {
+            var event = EventGateway.service.socketRead();
+            if (! event.isEnabled()) {
                 return readImpl(b, off, len);
             }
             int bytesRead = 0;
             long start = 0;
             try {
-                start = SocketReadEvent.timestamp();
+                start =  event.timestamp();
                 bytesRead = readImpl(b, off, len);
             } finally {
-                SocketReadEvent.processEvent(start, bytesRead, parent.getRemoteSocketAddress());
+                 event.log(start, bytesRead, parent.getRemoteSocketAddress());
             }
             return bytesRead;
         }
@@ -1135,18 +1135,19 @@ public class Socket implements java.io.Closeable {
 
         @Override
         public void write(byte[] b, int off, int len) throws IOException {
-            if (!SocketWriteEvent.isEnabled()) {
+            var event = EventGateway.service.socketWrite();
+            if (! event.isEnabled()) {
                 writeImpl(b, off, len);
                 return;
             }
             int bytesWritten = 0;
             long start = 0;
             try {
-                start = SocketWriteEvent.timestamp();
+                start =  event.timestamp();
                 writeImpl(b, off, len);
                 bytesWritten = len;
             } finally {
-                SocketWriteEvent.processEvent(start, bytesWritten, parent.getRemoteSocketAddress());
+                 event.log(start, bytesWritten, parent.getRemoteSocketAddress());
             }
         }
 

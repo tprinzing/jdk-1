@@ -407,8 +407,7 @@ module java.base {
     uses sun.util.locale.provider.LocaleDataMetaInfo;
     uses sun.util.resources.LocaleData.CommonResourceBundleProvider;
     uses sun.util.resources.LocaleData.SupplementaryResourceBundleProvider;
-    uses jdk.internal.event.SocketReadEvent.Provider;
-    uses jdk.internal.event.SocketWriteEvent.Provider;
+    uses jdk.internal.event.EventGateway;
 
     // Built-in service providers that are located via ServiceLoader
 

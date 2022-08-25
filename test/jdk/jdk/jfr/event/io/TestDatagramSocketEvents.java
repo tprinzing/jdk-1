@@ -64,8 +64,8 @@ public class TestDatagramSocketEvents {
 
     public void testUnconnected() throws Throwable {
         try (Recording recording = new Recording()) {
-            recording.enable(IOEvent.EVENT_SOCKET_READ).withThreshold(Duration.ofMillis(0));
-            recording.enable(IOEvent.EVENT_SOCKET_WRITE).withThreshold(Duration.ofMillis(0));
+            recording.enable(IOEvent.EVENT_DATAGRAM_RECEIVE).withThreshold(Duration.ofMillis(0));
+            recording.enable(IOEvent.EVENT_DATAGRAM_SEND).withThreshold(Duration.ofMillis(0));
             recording.start();
             try (DatagramSocket server = new DatagramSocket(new InetSocketAddress("localhost", 0))) {
                 InetSocketAddress saddr = new InetSocketAddress(server.getLocalAddress(), server.getLocalPort());

@@ -59,8 +59,7 @@ import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
 import static java.net.StandardProtocolFamily.UNIX;
 
-import jdk.internal.event.SocketReadEvent;
-import jdk.internal.event.SocketWriteEvent;
+import jdk.internal.event.EventGateway;
 import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
 import sun.net.ext.ExtendedSocketOptions;
@@ -405,16 +404,17 @@ class SocketChannelImpl
 
     @Override
     public int read(ByteBuffer buf) throws IOException {
-        if (!SocketReadEvent.isEnabled()) {
+        var event = EventGateway.service.socketRead();
+        if (! event.isEnabled()) {
             return readImpl(buf);
         }
         int bytesRead = 0;
         long start  = 0;
         try {
-            start = SocketReadEvent.timestamp();;
+            start =  event.timestamp();;
             bytesRead = readImpl(buf);
         } finally {
-            SocketReadEvent.processEvent(start, bytesRead, getRemoteAddress());
+             event.log(start, bytesRead, getRemoteAddress());
         }
         return bytesRead;
     }
@@ -464,16 +464,17 @@ class SocketChannelImpl
     public long read(ByteBuffer[] dsts, int offset, int length)
             throws IOException
     {
-        if (!SocketReadEvent.isEnabled()) {
+        var event = EventGateway.service.socketRead();
+        if (!event.isEnabled()) {
             return readImpl(dsts, offset, length);
         }
         long bytesRead = 0;
         long start = 0;
         try {
-            start = SocketReadEvent.timestamp();
+            start = event.timestamp();
             bytesRead = readImpl(dsts, offset, length);
         } finally {
-            SocketReadEvent.processEvent(start, bytesRead, getRemoteAddress());
+            event.log(start, bytesRead, getRemoteAddress());
         }
         return bytesRead;
     }
@@ -564,16 +565,17 @@ class SocketChannelImpl
 
     @Override
     public int write(ByteBuffer buf) throws IOException {
-        if (!SocketWriteEvent.isEnabled()) {
+        var event = EventGateway.service.socketWrite();
+        if (! event.isEnabled()) {
             return writeImpl(buf);
         }
         int bytesWritten = 0;
         long start = 0;
         try {
-            start = SocketWriteEvent.timestamp();
+            start =  event.timestamp();
             bytesWritten = writeImpl(buf);
         } finally {
-            SocketWriteEvent.processEvent(start, bytesWritten, getRemoteAddress());
+             event.log(start, bytesWritten, getRemoteAddress());
         }
         return bytesWritten;
     }
@@ -609,16 +611,17 @@ class SocketChannelImpl
     public long write(ByteBuffer[] srcs, int offset, int length)
             throws IOException
     {
-        if (!SocketWriteEvent.isEnabled()) {
+        var event = EventGateway.service.socketWrite();
+        if (! event.isEnabled()) {
             return writeImpl(srcs, offset, length);
         }
         long bytesWritten = 0;
         long start = 0;
         try {
-            start = SocketWriteEvent.timestamp();
+            start =  event.timestamp();
             bytesWritten = writeImpl(srcs, offset, length);
         } finally {
-            SocketWriteEvent.processEvent(start, bytesWritten, getRemoteAddress());
+             event.log(start, bytesWritten, getRemoteAddress());
         }
         return bytesWritten;
     }

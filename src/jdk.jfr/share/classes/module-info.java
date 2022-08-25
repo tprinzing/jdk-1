@@ -23,6 +23,10 @@
  * questions.
  */
 
+
+import jdk.internal.event.EventGateway;
+import jdk.jfr.internal.spi.JFREventGateway;
+
 /**
  * Defines the API for JDK Flight Recorder.
  *
@@ -35,8 +39,5 @@ module jdk.jfr {
 
     exports jdk.jfr.internal.management to jdk.management.jfr;
 
-    provides jdk.internal.event.SocketReadEvent.Provider
-            with jdk.jfr.internal.spi.SocketReadEventService;
-    provides jdk.internal.event.SocketWriteEvent.Provider
-            with jdk.jfr.internal.spi.SocketWriteEventService;
+    provides EventGateway with JFREventGateway;
 }

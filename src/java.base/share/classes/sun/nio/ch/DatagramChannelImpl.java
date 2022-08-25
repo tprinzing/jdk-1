@@ -71,8 +71,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
-import jdk.internal.event.SocketReadEvent;
-import jdk.internal.event.SocketWriteEvent;
+import jdk.internal.event.EventGateway;
 import jdk.internal.ref.CleanerFactory;
 import sun.net.ResourceManager;
 import sun.net.ext.ExtendedSocketOptions;
@@ -558,7 +557,8 @@ class DatagramChannelImpl
 
     @Override
     public SocketAddress receive(ByteBuffer dst) throws IOException {
-        if (!SocketReadEvent.isEnabled()) {
+        var event = EventGateway.service.datagramReceive();
+        if (! event.isEnabled()) {
             return receiveImpl(dst);
         }
         int bytesRead = 0;
@@ -566,11 +566,11 @@ class DatagramChannelImpl
         SocketAddress remoteAddress = null;
         try {
             long pos = dst.position();
-            start = SocketReadEvent.timestamp();;
+            start =  event.timestamp();;
             remoteAddress = receiveImpl(dst);
             bytesRead = (int) (dst.position() - pos);
         } finally {
-            SocketReadEvent.processEvent(start, bytesRead, remoteAddress);
+             event.log(start, bytesRead, remoteAddress);
         }
         return remoteAddress;
     }
@@ -666,7 +666,8 @@ class DatagramChannelImpl
      * @throws SocketTimeoutException if the timeout elapses
      */
     SocketAddress blockingReceive(ByteBuffer dst, long nanos) throws IOException {
-        if (!SocketReadEvent.isEnabled()) {
+        var event = EventGateway.service.datagramReceive();
+        if (! event.isEnabled()) {
             return blockingReceiveImpl(dst, nanos);
         }
         int bytesRead = 0;
@@ -674,11 +675,11 @@ class DatagramChannelImpl
         SocketAddress remoteAddress = null;
         try {
             long pos = dst.position();
-            start = SocketReadEvent.timestamp();;
+            start =  event.timestamp();;
             remoteAddress = blockingReceiveImpl(dst, nanos);
             bytesRead = (int) (dst.position() - pos);
         } finally {
-            SocketReadEvent.processEvent(start, bytesRead, remoteAddress);
+             event.log(start, bytesRead, remoteAddress);
         }
         return remoteAddress;
     }
@@ -849,16 +850,17 @@ class DatagramChannelImpl
     public int send(ByteBuffer src, SocketAddress target)
         throws IOException
     {
-        if (!SocketWriteEvent.isEnabled()) {
+        EventGateway.NetworkEventPublisher event = EventGateway.service.datagramSend();
+        if (!event.isEnabled()) {
             return sendImpl(src, target);
         }
         int bytesWritten = 0;
         long start = 0;
         try {
-            start = SocketWriteEvent.timestamp();
+            start = event.timestamp();
             bytesWritten = sendImpl(src, target);
         } finally {
-            SocketWriteEvent.processEvent(start, bytesWritten, target);
+            event.log(start, bytesWritten, target);
         }
         return bytesWritten;
     }
@@ -1017,16 +1019,17 @@ class DatagramChannelImpl
 
     @Override
     public int read(ByteBuffer buf) throws IOException {
-        if (!SocketReadEvent.isEnabled()) {
+        var event = EventGateway.service.datagramReceive();
+        if (! event.isEnabled()) {
             return readImpl(buf);
         }
         int bytesRead = 0;
         long start  = 0;
         try {
-            start = SocketReadEvent.timestamp();;
+            start = event.timestamp();;
             bytesRead = readImpl(buf);
         } finally {
-            SocketReadEvent.processEvent(start, bytesRead, getRemoteAddress());
+            event.log(start, bytesRead, getRemoteAddress());
         }
         return bytesRead;
     }
@@ -1062,16 +1065,17 @@ class DatagramChannelImpl
     public long read(ByteBuffer[] dsts, int offset, int length)
             throws IOException
     {
-        if (!SocketReadEvent.isEnabled()) {
+        var event = EventGateway.service.datagramReceive();
+        if (! event.isEnabled()) {
             return readImpl(dsts, offset, length);
         }
         long bytesRead = 0;
         long start = 0;
         try {
-            start = SocketReadEvent.timestamp();
+            start =  event.timestamp();
             bytesRead = readImpl(dsts, offset, length);
         } finally {
-            SocketReadEvent.processEvent(start, bytesRead, getRemoteAddress());
+             event.log(start, bytesRead, getRemoteAddress());
         }
         return bytesRead;
     }
@@ -1162,16 +1166,17 @@ class DatagramChannelImpl
 
     @Override
     public int write(ByteBuffer buf) throws IOException {
-        if (!SocketWriteEvent.isEnabled()) {
+        var event = EventGateway.service.datagramSend();
+        if (! event.isEnabled()) {
             return writeImpl(buf);
         }
         int bytesWritten = 0;
         long start = 0;
         try {
-            start = SocketWriteEvent.timestamp();
+            start =  event.timestamp();
             bytesWritten = writeImpl(buf);
         } finally {
-            SocketWriteEvent.processEvent(start, bytesWritten, getRemoteAddress());
+             event.log(start, bytesWritten, getRemoteAddress());
         }
         return bytesWritten;
     }
@@ -1207,16 +1212,17 @@ class DatagramChannelImpl
     public long write(ByteBuffer[] srcs, int offset, int length)
         throws IOException
     {
-        if (!SocketWriteEvent.isEnabled()) {
+        var event = EventGateway.service.datagramSend();
+        if (!event.isEnabled()) {
             return writeImpl(srcs, offset, length);
         }
         long bytesWritten = 0;
         long start = 0;
         try {
-            start = SocketWriteEvent.timestamp();
+            start = event.timestamp();
             bytesWritten = writeImpl(srcs, offset, length);
         } finally {
-            SocketWriteEvent.processEvent(start, bytesWritten, getRemoteAddress());
+            event.log(start, bytesWritten, getRemoteAddress());
         }
         return bytesWritten;
     }

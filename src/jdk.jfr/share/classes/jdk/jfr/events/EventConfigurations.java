@@ -28,6 +28,8 @@ import jdk.jfr.internal.Utils;
 import jdk.jfr.internal.event.EventConfiguration;
 
 public final class EventConfigurations {
+    public static final EventConfiguration DATAGRAM_RECEIVE = Utils.getConfiguration(DatagramReceiveEvent.class);
+    public static final EventConfiguration DATAGRAM_SEND = Utils.getConfiguration(DatagramSendEvent.class);
     public static final EventConfiguration SOCKET_READ = Utils.getConfiguration(SocketReadEvent.class);
     public static final EventConfiguration SOCKET_WRITE = Utils.getConfiguration(SocketWriteEvent.class);
     public static final EventConfiguration FILE_READ = Utils.getConfiguration(FileReadEvent.class);
