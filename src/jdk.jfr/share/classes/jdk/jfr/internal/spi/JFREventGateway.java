@@ -1,3 +1,28 @@
+/*
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+
 package jdk.jfr.internal.spi;
 
 import jdk.internal.event.EventGateway;
@@ -40,8 +65,12 @@ public final class JFREventGateway implements EventGateway {
         @Override
         public boolean isEnabled() {
             EventConfiguration config = EventConfigurations.DATAGRAM_SEND;
-            System.out.println(getClass().getName()+ " config: "+config);
             return (config != null) ? config.isEnabled() : false;
+        }
+
+        @Override
+        public boolean shouldCommit(long duration) {
+            return EventConfigurations.DATAGRAM_SEND.shouldCommit(duration);
         }
 
         @Override
@@ -51,7 +80,6 @@ public final class JFREventGateway implements EventGateway {
 
         @Override
         public void log(long start, long byteCount, SocketAddress remote) {
-            System.out.println(getClass().getName()+ " processEvent");
             DatagramSendEvent.processEvent(start, byteCount, remote);
         }
     };
@@ -64,14 +92,19 @@ public final class JFREventGateway implements EventGateway {
             return (config != null) ? config.isEnabled() : false;
         }
 
+       @Override
+       public boolean shouldCommit(long duration) {
+           return EventConfigurations.DATAGRAM_RECEIVE.shouldCommit(duration);
+       }
+
         @Override
         public long timestamp() {
             return EventConfiguration.timestamp();
         }
 
         @Override
-        public void log(long start, long bytesRead, SocketAddress remote) {
-            jdk.jfr.events.DatagramReceiveEvent.processEvent(start, bytesRead, remote);
+        public void log(long start, long byteCount, SocketAddress remote) {
+            jdk.jfr.events.DatagramReceiveEvent.processEvent(start, byteCount, remote);
         }
 
    };
@@ -84,13 +117,18 @@ public final class JFREventGateway implements EventGateway {
         }
 
         @Override
+        public boolean shouldCommit(long duration) {
+            return EventConfigurations.SOCKET_READ.shouldCommit(duration);
+        }
+
+        @Override
         public long timestamp() {
             return EventConfiguration.timestamp();
         }
 
         @Override
-        public void log(long start, long bytesRead, SocketAddress remote) {
-            SocketReadEvent.processEvent(start, bytesRead, remote);
+        public void log(long start, long byteCount, SocketAddress remote) {
+            SocketReadEvent.processEvent(start, byteCount, remote);
         }
     };
 
@@ -100,6 +138,11 @@ public final class JFREventGateway implements EventGateway {
         public boolean isEnabled() {
             EventConfiguration config = EventConfigurations.SOCKET_WRITE;
             return (config != null) ? config.isEnabled() : false;
+        }
+
+        @Override
+        public boolean shouldCommit(long duration) {
+            return EventConfigurations.SOCKET_WRITE.shouldCommit(duration);
         }
 
         @Override

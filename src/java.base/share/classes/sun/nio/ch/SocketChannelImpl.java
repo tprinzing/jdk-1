@@ -404,19 +404,7 @@ class SocketChannelImpl
 
     @Override
     public int read(ByteBuffer buf) throws IOException {
-        var event = EventGateway.service.socketRead();
-        if (! event.isEnabled()) {
-            return readImpl(buf);
-        }
-        int bytesRead = 0;
-        long start  = 0;
-        try {
-            start =  event.timestamp();;
-            bytesRead = readImpl(buf);
-        } finally {
-             event.log(start, bytesRead, getRemoteAddress());
-        }
-        return bytesRead;
+        return (int) EventGateway.service.socketRead().measure(getRemoteAddress(), () -> readImpl(buf));
     }
 
     private int readImpl(ByteBuffer buf) throws IOException {
@@ -464,19 +452,7 @@ class SocketChannelImpl
     public long read(ByteBuffer[] dsts, int offset, int length)
             throws IOException
     {
-        var event = EventGateway.service.socketRead();
-        if (!event.isEnabled()) {
-            return readImpl(dsts, offset, length);
-        }
-        long bytesRead = 0;
-        long start = 0;
-        try {
-            start = event.timestamp();
-            bytesRead = readImpl(dsts, offset, length);
-        } finally {
-            event.log(start, bytesRead, getRemoteAddress());
-        }
-        return bytesRead;
+        return EventGateway.service.socketRead().measure(getRemoteAddress(), () -> readImpl(dsts,offset,length));
     }
 
     private long readImpl(ByteBuffer[] dsts, int offset, int length)
@@ -565,19 +541,7 @@ class SocketChannelImpl
 
     @Override
     public int write(ByteBuffer buf) throws IOException {
-        var event = EventGateway.service.socketWrite();
-        if (! event.isEnabled()) {
-            return writeImpl(buf);
-        }
-        int bytesWritten = 0;
-        long start = 0;
-        try {
-            start =  event.timestamp();
-            bytesWritten = writeImpl(buf);
-        } finally {
-             event.log(start, bytesWritten, getRemoteAddress());
-        }
-        return bytesWritten;
+        return (int) EventGateway.service.socketWrite().measure(getRemoteAddress(), () -> writeImpl(buf));
     }
 
     private int writeImpl(ByteBuffer buf) throws IOException {
@@ -611,19 +575,7 @@ class SocketChannelImpl
     public long write(ByteBuffer[] srcs, int offset, int length)
             throws IOException
     {
-        var event = EventGateway.service.socketWrite();
-        if (! event.isEnabled()) {
-            return writeImpl(srcs, offset, length);
-        }
-        long bytesWritten = 0;
-        long start = 0;
-        try {
-            start =  event.timestamp();
-            bytesWritten = writeImpl(srcs, offset, length);
-        } finally {
-             event.log(start, bytesWritten, getRemoteAddress());
-        }
-        return bytesWritten;
+        return EventGateway.service.socketWrite().measure(getRemoteAddress(), () -> writeImpl(srcs,offset,length));
     }
 
     private long writeImpl(ByteBuffer[] srcs, int offset, int length)

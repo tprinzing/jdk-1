@@ -1023,19 +1023,7 @@ public class Socket implements java.io.Closeable {
 
         @Override
         public int read(byte[] b, int off, int len) throws IOException {
-            var event = EventGateway.service.socketRead();
-            if (! event.isEnabled()) {
-                return readImpl(b, off, len);
-            }
-            int bytesRead = 0;
-            long start = 0;
-            try {
-                start =  event.timestamp();
-                bytesRead = readImpl(b, off, len);
-            } finally {
-                 event.log(start, bytesRead, parent.getRemoteSocketAddress());
-            }
-            return bytesRead;
+            return (int) EventGateway.service.socketRead().measure(parent.getRemoteSocketAddress(), () -> readImpl(b,off,len));
         }
 
         private int readImpl(byte[] b, int off, int len) throws IOException {
@@ -1135,20 +1123,10 @@ public class Socket implements java.io.Closeable {
 
         @Override
         public void write(byte[] b, int off, int len) throws IOException {
-            var event = EventGateway.service.socketWrite();
-            if (! event.isEnabled()) {
-                writeImpl(b, off, len);
-                return;
-            }
-            int bytesWritten = 0;
-            long start = 0;
-            try {
-                start =  event.timestamp();
-                writeImpl(b, off, len);
-                bytesWritten = len;
-            } finally {
-                 event.log(start, bytesWritten, parent.getRemoteSocketAddress());
-            }
+            EventGateway.service.socketWrite().measure(parent.getRemoteSocketAddress(), () -> {
+                writeImpl(b,off,len);
+                return len;
+            });
         }
 
         private void writeImpl(byte[] b, int off, int len) throws IOException {

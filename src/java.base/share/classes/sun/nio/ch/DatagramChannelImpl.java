@@ -850,19 +850,7 @@ class DatagramChannelImpl
     public int send(ByteBuffer src, SocketAddress target)
         throws IOException
     {
-        EventGateway.NetworkEventPublisher event = EventGateway.service.datagramSend();
-        if (!event.isEnabled()) {
-            return sendImpl(src, target);
-        }
-        int bytesWritten = 0;
-        long start = 0;
-        try {
-            start = event.timestamp();
-            bytesWritten = sendImpl(src, target);
-        } finally {
-            event.log(start, bytesWritten, target);
-        }
-        return bytesWritten;
+        return (int) EventGateway.service.datagramSend().measure(target, () -> sendImpl(src,target));
     }
 
     private int sendImpl(ByteBuffer src, SocketAddress target)
@@ -1166,19 +1154,7 @@ class DatagramChannelImpl
 
     @Override
     public int write(ByteBuffer buf) throws IOException {
-        var event = EventGateway.service.datagramSend();
-        if (! event.isEnabled()) {
-            return writeImpl(buf);
-        }
-        int bytesWritten = 0;
-        long start = 0;
-        try {
-            start =  event.timestamp();
-            bytesWritten = writeImpl(buf);
-        } finally {
-             event.log(start, bytesWritten, getRemoteAddress());
-        }
-        return bytesWritten;
+        return (int) EventGateway.service.datagramSend().measure(getRemoteAddress(), () -> writeImpl(buf));
     }
 
     private int writeImpl(ByteBuffer buf) throws IOException {
@@ -1212,19 +1188,7 @@ class DatagramChannelImpl
     public long write(ByteBuffer[] srcs, int offset, int length)
         throws IOException
     {
-        var event = EventGateway.service.datagramSend();
-        if (!event.isEnabled()) {
-            return writeImpl(srcs, offset, length);
-        }
-        long bytesWritten = 0;
-        long start = 0;
-        try {
-            start = event.timestamp();
-            bytesWritten = writeImpl(srcs, offset, length);
-        } finally {
-            event.log(start, bytesWritten, getRemoteAddress());
-        }
-        return bytesWritten;
+        return EventGateway.service.datagramSend().measure(getRemoteAddress(), () -> writeImpl(srcs, offset, length));
     }
 
     private long writeImpl(ByteBuffer[] srcs, int offset, int length)
