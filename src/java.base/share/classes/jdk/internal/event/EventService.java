@@ -64,26 +64,26 @@ public interface EventService {
      * @return the object to use to publish network events for socket write
      *   operations.  The default object will not attempt to log any events.
      */
-    default SocketReadPublisher socketRead() { return SocketReadPublisher.noPublish; }
+    default SocketReadLogger socketRead() { return SocketReadLogger.noPublish; }
 
     /**
      *
      * @return the object to use to publish network events for socket read
      *   operations.  The default object will not attempt to log any events.
      */
-    default SocketWritePublisher socketWrite() { return SocketWritePublisher.noPublish; }
+    default SocketWriteLogger socketWrite() { return SocketWriteLogger.noPublish; }
 
     /**
      *
      * @return the object to use to publish network events for datagram send
      *   operations.  The default object will not attempt to log any events.
      */
-    default DatagramSendPublisher datagramSend() { return DatagramSendPublisher.noPublish; }
+    default DatagramSendLogger datagramSend() { return DatagramSendLogger.noPublish; }
 
     /**
      *
      * @return the object to use to publish network events for datagram receive
      *   operations.  The default object will not attempt to log any events.
      */
-    default DatagramReceivePublisher datagramReceive() { return DatagramReceivePublisher.noPublish; }
+    default DatagramReceiveLogger datagramReceive() { return DatagramReceiveLogger.noPublish; }
 }

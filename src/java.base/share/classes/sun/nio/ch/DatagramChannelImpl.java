@@ -71,8 +71,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
-import jdk.internal.event.DatagramReceivePublisher;
-import jdk.internal.event.DatagramSendPublisher;
+import jdk.internal.event.DatagramReceiveLogger;
+import jdk.internal.event.DatagramSendLogger;
 import jdk.internal.event.EventService;
 import jdk.internal.ref.CleanerFactory;
 import sun.net.ResourceManager;
@@ -174,8 +174,8 @@ class DatagramChannelImpl
     // -- End of fields protected by stateLock
 
     // event logging
-    private static final DatagramSendPublisher sendEvents = EventService.service.datagramSend();
-    private static final DatagramReceivePublisher receiveEvents = EventService.service.datagramReceive();
+    private static final DatagramSendLogger sendEvents = EventService.service.datagramSend();
+    private static final DatagramReceiveLogger receiveEvents = EventService.service.datagramReceive();
 
     DatagramChannelImpl(SelectorProvider sp, boolean interruptible) throws IOException {
         this(sp, (Net.isIPv6Available()

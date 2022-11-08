@@ -29,26 +29,20 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.UnixDomainSocketAddress;
 
-/**
- * The API to generate socket write JFR events.
- */
-public interface SocketWritePublisher extends EventPublisher {
-
-    default void commit(long start, long duration, String host, String address, int port, long bytes) {}
+public interface SocketReadLogger extends EventLogger {
 
     /**
      * Execute the standard boilerplate that proceeds a potential call to the machine generated
      * commit method.
      *
      * @param start  the start time
-     * @param bytesWritten  how many bytes were sent
+     * @param bytesRead  how many bytes were received
      * @param remote  the address of the remote socket being written to
      */
-    default void log(long start, long bytesWritten, SocketAddress remote) {
+    default void log(long start, long bytesRead, SocketAddress remote) {
         if (isEnabled()) {
             long duration = timestamp() - start;
             if (shouldCommit(duration)) {
-                long bytes = bytesWritten < 0 ? 0 : bytesWritten;
                 if (remote instanceof InetSocketAddress isa) {
                     String hostString = isa.getAddress().toString();
                     int delimiterIndex = hostString.lastIndexOf('/');
@@ -56,18 +50,28 @@ public interface SocketWritePublisher extends EventPublisher {
                     String host = hostString.substring(0, delimiterIndex);
                     String address = hostString.substring(delimiterIndex + 1);
                     int port = isa.getPort();
-                    commit(start, duration, host, address, port, bytes);
+                    if (bytesRead < 0) {
+                        commit(start, duration, host, address, port, 0, 0L, true);
+                    } else {
+                        commit(start, duration, host, address, port, 0, bytesRead, false);
+                    }
                 } else if (remote instanceof UnixDomainSocketAddress) {
                     UnixDomainSocketAddress udsa = (UnixDomainSocketAddress) remote;
                     String path = "[" + udsa.getPath().toString() + "]";
-                    commit(start, duration, "Unix domain socket", path, 0, bytes);
+                    if (bytesRead < 0) {
+                        commit(start, duration, "Unix domain socket", path, 0, 0, 0L, true);
+                    } else {
+                        commit(start, duration, "Unix domain socket", path, 0, 0, bytesRead, false);
+                    }
                 }
             }
         }
     }
+    default void commit(long start, long duration, String host, String address, int port, long timeout, long byteRead, boolean endOfStream) {}
 
-    static final SocketWritePublisher noPublish = new SocketWritePublisher() {
+    static final SocketReadLogger noPublish = new SocketReadLogger() {
         @Override
-        public void log(long start, long bytesWritten, SocketAddress remote) { }
+        public void log(long start, long bytesRead, SocketAddress remote) {
+        }
     };
 }

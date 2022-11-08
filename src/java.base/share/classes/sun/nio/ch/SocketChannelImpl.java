@@ -60,8 +60,8 @@ import static java.net.StandardProtocolFamily.INET6;
 import static java.net.StandardProtocolFamily.UNIX;
 
 import jdk.internal.event.EventService;
-import jdk.internal.event.SocketReadPublisher;
-import jdk.internal.event.SocketWritePublisher;
+import jdk.internal.event.SocketReadLogger;
+import jdk.internal.event.SocketWriteLogger;
 import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
 import sun.net.ext.ExtendedSocketOptions;
@@ -103,8 +103,8 @@ class SocketChannelImpl
     private boolean connectionReset;
 
     // Event logging
-    private static final SocketReadPublisher readEvents = EventService.service.socketRead();
-    private static final SocketWritePublisher writeEvents = EventService.service.socketWrite();
+    private static final SocketReadLogger readEvents = EventService.service.socketRead();
+    private static final SocketWriteLogger writeEvents = EventService.service.socketWrite();
 
     // -- The following fields are protected by stateLock
 

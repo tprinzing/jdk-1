@@ -29,8 +29,6 @@ import jdk.internal.event.*;
 import jdk.jfr.events.*;
 import jdk.jfr.internal.event.EventConfiguration;
 
-import java.net.SocketAddress;
-
 /**
  * Provides a JFR event logging service to the java.base
  * module.
@@ -38,26 +36,26 @@ import java.net.SocketAddress;
 public final class JFREventService implements EventService {
 
     @Override
-    public DatagramSendPublisher datagramSend() {
+    public DatagramSendLogger datagramSend() {
         return datagramSendPublish;
     }
 
     @Override
-    public DatagramReceivePublisher datagramReceive() {
+    public DatagramReceiveLogger datagramReceive() {
         return datagramReceivePublish;
     }
 
     @Override
-    public SocketReadPublisher socketRead() {
+    public SocketReadLogger socketRead() {
         return socketReadPublisher;
     }
 
     @Override
-    public SocketWritePublisher socketWrite() {
+    public SocketWriteLogger socketWrite() {
         return socketWritePublisher;
     }
 
-    private final DatagramSendPublisher datagramSendPublish = new DatagramSendPublisher() {
+    private final DatagramSendLogger datagramSendPublish = new DatagramSendLogger() {
 
         @Override
         public boolean isEnabled() {
@@ -81,7 +79,7 @@ public final class JFREventService implements EventService {
         }
     };
 
-   private final DatagramReceivePublisher datagramReceivePublish = new DatagramReceivePublisher() {
+   private final DatagramReceiveLogger datagramReceivePublish = new DatagramReceiveLogger() {
 
         @Override
         public boolean isEnabled() {
@@ -105,7 +103,7 @@ public final class JFREventService implements EventService {
         }
    };
 
-    private final SocketReadPublisher socketReadPublisher = new SocketReadPublisher() {
+    private final SocketReadLogger socketReadPublisher = new SocketReadLogger() {
         @Override
         public boolean isEnabled() {
             EventConfiguration config = EventConfigurations.SOCKET_READ;
@@ -128,7 +126,7 @@ public final class JFREventService implements EventService {
         }
     };
 
-    private final SocketWritePublisher socketWritePublisher = new SocketWritePublisher() {
+    private final SocketWriteLogger socketWritePublisher = new SocketWriteLogger() {
 
         @Override
         public boolean isEnabled() {

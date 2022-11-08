@@ -29,7 +29,7 @@ package jdk.internal.event;
  * Interface to represent the basis of JFR event publishing of jdk.base events
  * using the service provider mechanism.
  */
-public interface EventPublisher {
+public interface EventLogger {
 
         default boolean isEnabled() { return false; }
 

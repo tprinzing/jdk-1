@@ -26,8 +26,8 @@
 package java.net;
 
 import jdk.internal.event.EventService;
-import jdk.internal.event.SocketReadPublisher;
-import jdk.internal.event.SocketWritePublisher;
+import jdk.internal.event.SocketReadLogger;
+import jdk.internal.event.SocketWriteLogger;
 import sun.security.util.SecurityConstants;
 
 import java.io.InputStream;
@@ -136,8 +136,8 @@ public class Socket implements java.io.Closeable {
     /**
      * Event logging
      */
-    private static final SocketReadPublisher readEvents = EventService.service.socketRead();
-    private static final SocketWritePublisher writeEvents = EventService.service.socketWrite();
+    private static final SocketReadLogger readEvents = EventService.service.socketRead();
+    private static final SocketWriteLogger writeEvents = EventService.service.socketWrite();
 
     /**
      * Creates an unconnected Socket.

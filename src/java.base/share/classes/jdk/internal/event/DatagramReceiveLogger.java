@@ -28,23 +28,22 @@ package jdk.internal.event;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
-public interface DatagramSendPublisher extends EventPublisher {
+public interface DatagramReceiveLogger extends EventLogger {
 
-    default void commit(long start, long duration, String host, String address, int port, long bytes) { }
+    default void commit(long start, long duration, String host, String address, int port, long timeout, long byteRead) { }
 
     /**
      * Execute the standard boilerplate that proceeds a potential call to the machine generated
      * commit method.
      *
      * @param start  the start time
-     * @param bytesWritten  how many bytes were sent
+     * @param bytesRead  how many bytes were received
      * @param remote  the address of the remote socket being written to
      */
-    default void log(long start, long bytesWritten, SocketAddress remote) {
+    default void log(long start, long bytesRead, SocketAddress remote) {
         if (isEnabled()) {
             long duration = timestamp() - start;
             if (shouldCommit(duration)) {
-                long bytes = bytesWritten < 0 ? 0 : bytesWritten;
                 if (remote instanceof InetSocketAddress isa) {
                     String hostString = isa.getAddress().toString();
                     int delimiterIndex = hostString.lastIndexOf('/');
@@ -52,14 +51,15 @@ public interface DatagramSendPublisher extends EventPublisher {
                     String host = hostString.substring(0, delimiterIndex);
                     String address = hostString.substring(delimiterIndex + 1);
                     int port = isa.getPort();
-                    commit(start, duration, host, address, port, bytes);
+                    bytesRead = (bytesRead < 0) ? 0 : bytesRead;
+                    commit(start, duration, host, address, port, 0, bytesRead);
                 }
             }
         }
     }
 
-    static DatagramSendPublisher noPublish = new DatagramSendPublisher() {
+    static DatagramReceiveLogger noPublish = new DatagramReceiveLogger() {
         @Override
-        public void log(long start, long bytesWritten, SocketAddress remote) { }
+        public void log(long start, long bytesRead, SocketAddress remote) { }
     };
 }
