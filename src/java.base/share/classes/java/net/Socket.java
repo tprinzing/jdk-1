@@ -25,7 +25,9 @@
 
 package java.net;
 
-import jdk.internal.event.EventGateway;
+import jdk.internal.event.EventService;
+import jdk.internal.event.SocketReadPublisher;
+import jdk.internal.event.SocketWritePublisher;
 import sun.security.util.SecurityConstants;
 
 import java.io.InputStream;
@@ -130,6 +132,12 @@ public class Socket implements java.io.Closeable {
             throw new InternalError(e);
         }
     }
+
+    /**
+     * Event logging
+     */
+    private static final SocketReadPublisher readEvents = EventService.service.socketRead();
+    private static final SocketWritePublisher writeEvents = EventService.service.socketWrite();
 
     /**
      * Creates an unconnected Socket.
@@ -1023,10 +1031,17 @@ public class Socket implements java.io.Closeable {
 
         @Override
         public int read(byte[] b, int off, int len) throws IOException {
-            return (int) EventGateway.service.socketRead().measure(parent.getRemoteSocketAddress(), () -> readImpl(b,off,len));
+            int nbytes = 0;
+            long start = readEvents.timestamp();
+            try {
+                nbytes = readMeasured(b,off,len);
+            } finally {
+                readEvents.log(start, nbytes, parent.getRemoteSocketAddress());
+            }
+            return nbytes;
         }
 
-        private int readImpl(byte[] b, int off, int len) throws IOException {
+        private int readMeasured(byte[] b, int off, int len) throws IOException {
             try {
                 return in.read(b, off, len);
             } catch (SocketTimeoutException e) {
@@ -1123,13 +1138,15 @@ public class Socket implements java.io.Closeable {
 
         @Override
         public void write(byte[] b, int off, int len) throws IOException {
-            EventGateway.service.socketWrite().measure(parent.getRemoteSocketAddress(), () -> {
-                writeImpl(b,off,len);
-                return len;
-            });
+            long start = writeEvents.timestamp();
+            try {
+                writeMeasured(b,off,len);
+            } finally {
+                writeEvents.log(start, len, parent.getRemoteSocketAddress());
+            }
         }
 
-        private void writeImpl(byte[] b, int off, int len) throws IOException {
+        private void writeMeasured(byte[] b, int off, int len) throws IOException {
             try {
                 out.write(b, off, len);
             } catch (InterruptedIOException e) {

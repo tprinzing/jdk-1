@@ -59,7 +59,9 @@ import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
 import static java.net.StandardProtocolFamily.UNIX;
 
-import jdk.internal.event.EventGateway;
+import jdk.internal.event.EventService;
+import jdk.internal.event.SocketReadPublisher;
+import jdk.internal.event.SocketWritePublisher;
 import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
 import sun.net.ext.ExtendedSocketOptions;
@@ -99,6 +101,10 @@ class SocketChannelImpl
 
     // Connection reset protected by readLock
     private boolean connectionReset;
+
+    // Event logging
+    private static final SocketReadPublisher readEvents = EventService.service.socketRead();
+    private static final SocketWritePublisher writeEvents = EventService.service.socketWrite();
 
     // -- The following fields are protected by stateLock
 
@@ -404,10 +410,17 @@ class SocketChannelImpl
 
     @Override
     public int read(ByteBuffer buf) throws IOException {
-        return (int) EventGateway.service.socketRead().measure(getRemoteAddress(), () -> readImpl(buf));
+        int nbytes = 0;
+        long start = readEvents.timestamp();
+        try {
+            nbytes = readMeasured(buf);
+        } finally {
+            readEvents.log(start, nbytes, getRemoteAddress());
+        }
+        return nbytes;
     }
 
-    private int readImpl(ByteBuffer buf) throws IOException {
+    private int readMeasured(ByteBuffer buf) throws IOException {
         Objects.requireNonNull(buf);
 
         readLock.lock();
@@ -452,10 +465,17 @@ class SocketChannelImpl
     public long read(ByteBuffer[] dsts, int offset, int length)
             throws IOException
     {
-        return EventGateway.service.socketRead().measure(getRemoteAddress(), () -> readImpl(dsts,offset,length));
+        long nbytes = 0;
+        long start = readEvents.timestamp();
+        try {
+            nbytes = readMeasured(dsts,offset,length);
+        } finally {
+            readEvents.log(start, nbytes, getRemoteAddress());
+        }
+        return nbytes;
     }
 
-    private long readImpl(ByteBuffer[] dsts, int offset, int length)
+    private long readMeasured(ByteBuffer[] dsts, int offset, int length)
         throws IOException
     {
         Objects.checkFromIndexSize(offset, length, dsts.length);
@@ -541,10 +561,17 @@ class SocketChannelImpl
 
     @Override
     public int write(ByteBuffer buf) throws IOException {
-        return (int) EventGateway.service.socketWrite().measure(getRemoteAddress(), () -> writeImpl(buf));
+        int nbytes = 0;
+        long start = writeEvents.timestamp();
+        try {
+            nbytes = writeMeasured(buf);
+        } finally {
+            writeEvents.log(start, nbytes, getRemoteAddress());
+        }
+        return nbytes;
     }
 
-    private int writeImpl(ByteBuffer buf) throws IOException {
+    private int writeMeasured(ByteBuffer buf) throws IOException {
         Objects.requireNonNull(buf);
         writeLock.lock();
         try {
@@ -575,10 +602,17 @@ class SocketChannelImpl
     public long write(ByteBuffer[] srcs, int offset, int length)
             throws IOException
     {
-        return EventGateway.service.socketWrite().measure(getRemoteAddress(), () -> writeImpl(srcs,offset,length));
+        long nbytes = 0;
+        long start = writeEvents.timestamp();
+        try {
+            nbytes = writeMeasured(srcs,offset,length);
+        } finally {
+            writeEvents.log(start, nbytes, getRemoteAddress());
+        }
+        return nbytes;
     }
 
-    private long writeImpl(ByteBuffer[] srcs, int offset, int length)
+    private long writeMeasured(ByteBuffer[] srcs, int offset, int length)
         throws IOException
     {
         Objects.checkFromIndexSize(offset, length, srcs.length);

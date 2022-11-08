@@ -409,7 +409,7 @@ module java.base {
     uses sun.util.locale.provider.LocaleDataMetaInfo;
     uses sun.util.resources.LocaleData.CommonResourceBundleProvider;
     uses sun.util.resources.LocaleData.SupplementaryResourceBundleProvider;
-    uses jdk.internal.event.EventGateway;
+    uses jdk.internal.event.EventService;
 
     // Built-in service providers that are located via ServiceLoader
 

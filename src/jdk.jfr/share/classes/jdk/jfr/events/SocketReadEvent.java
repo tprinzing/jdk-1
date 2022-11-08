@@ -73,38 +73,4 @@ public final class SocketReadEvent extends AbstractJDKEvent {
         // Generated
     }
 
-    /**
-     * Execute the standard boilerplate that proceeds a potential call to the machine generated
-     * commit method.
-     *
-     * @param start  the start time
-     * @param bytesRead  how many bytes were received
-     * @param remote  the address of the remote socket being written to
-     */
-    public static void processEvent(long start, long bytesRead, SocketAddress remote) {
-        long duration = EventConfiguration.timestamp() - start;
-        if (EventConfigurations.SOCKET_READ.shouldCommit(duration))  {
-            if (remote instanceof InetSocketAddress isa) {
-                String hostString  = isa.getAddress().toString();
-                int delimiterIndex = hostString.lastIndexOf('/');
-
-                String host = hostString.substring(0, delimiterIndex);
-                String address = hostString.substring(delimiterIndex + 1);
-                int port = isa.getPort();
-                if (bytesRead < 0) {
-                    SocketReadEvent.commit(start, duration, host, address, port, 0, 0L, true);
-                } else {
-                    SocketReadEvent.commit(start, duration, host, address, port, 0, bytesRead, false);
-                }
-            } else if (remote instanceof UnixDomainSocketAddress){
-                UnixDomainSocketAddress udsa = (UnixDomainSocketAddress) remote;
-                String path = "[" + udsa.getPath().toString() + "]";
-                if (bytesRead < 0) {
-                    SocketReadEvent.commit(start, duration, "Unix domain socket", path, 0, 0, 0L, true);
-                } else {
-                    SocketReadEvent.commit(start, duration, "Unix domain socket", path, 0, 0, bytesRead, false);
-                }
-            }
-        }
-    }
 }

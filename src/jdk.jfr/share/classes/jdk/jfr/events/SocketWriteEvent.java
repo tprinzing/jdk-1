@@ -64,31 +64,4 @@ public final class SocketWriteEvent extends AbstractJDKEvent {
         // Generated
     }
 
-    /**
-     * Execute the standard boilerplate that proceeds a potential call to the machine generated
-     * commit method.
-     *
-     * @param start  the start time
-     * @param bytesWritten  how many bytes were sent
-     * @param remote  the address of the remote socket being written to
-     */
-    public static void processEvent(long start, long bytesWritten, SocketAddress remote) {
-        long duration = EventConfiguration.timestamp() - start;
-        if (EventConfigurations.SOCKET_WRITE.shouldCommit(duration)) {
-            long bytes = bytesWritten < 0 ? 0 : bytesWritten;
-            if (remote instanceof InetSocketAddress isa) {
-                String hostString  = isa.getAddress().toString();
-                int delimiterIndex = hostString.lastIndexOf('/');
-
-                String host = hostString.substring(0, delimiterIndex);
-                String address = hostString.substring(delimiterIndex + 1);
-                int port = isa.getPort();
-                SocketWriteEvent.commit(start, duration, host, address, port, bytes);
-            } else if (remote instanceof UnixDomainSocketAddress) {
-                UnixDomainSocketAddress udsa = (UnixDomainSocketAddress) remote;
-                String path = "[" + udsa.getPath().toString() + "]";
-                SocketWriteEvent.commit(start, duration, "Unix domain socket", path, 0, bytes);
-            }
-        }
-    }
 }

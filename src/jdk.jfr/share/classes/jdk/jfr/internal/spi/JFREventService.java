@@ -25,11 +25,8 @@
 
 package jdk.jfr.internal.spi;
 
-import jdk.internal.event.EventGateway;
-import jdk.jfr.events.DatagramSendEvent;
-import jdk.jfr.events.EventConfigurations;
-import jdk.jfr.events.SocketReadEvent;
-import jdk.jfr.events.SocketWriteEvent;
+import jdk.internal.event.*;
+import jdk.jfr.events.*;
 import jdk.jfr.internal.event.EventConfiguration;
 
 import java.net.SocketAddress;
@@ -38,29 +35,29 @@ import java.net.SocketAddress;
  * Provides a JFR event logging service to the java.base
  * module.
  */
-public final class JFREventGateway implements EventGateway {
+public final class JFREventService implements EventService {
 
     @Override
-    public NetworkEventPublisher datagramSend() {
+    public DatagramSendPublisher datagramSend() {
         return datagramSendPublish;
     }
 
     @Override
-    public NetworkEventPublisher datagramReceive() {
+    public DatagramReceivePublisher datagramReceive() {
         return datagramReceivePublish;
     }
 
     @Override
-    public NetworkEventPublisher socketRead() {
+    public SocketReadPublisher socketRead() {
         return socketReadPublisher;
     }
 
     @Override
-    public NetworkEventPublisher socketWrite() {
+    public SocketWritePublisher socketWrite() {
         return socketWritePublisher;
     }
 
-    private final NetworkEventPublisher datagramSendPublish = new NetworkEventPublisher() {
+    private final DatagramSendPublisher datagramSendPublish = new DatagramSendPublisher() {
 
         @Override
         public boolean isEnabled() {
@@ -79,12 +76,12 @@ public final class JFREventGateway implements EventGateway {
         }
 
         @Override
-        public void log(long start, long byteCount, SocketAddress remote) {
-            DatagramSendEvent.processEvent(start, byteCount, remote);
+        public void commit(long start, long duration, String host, String address, int port, long bytes) {
+            DatagramSendEvent.commit(start, duration, host, address, port, bytes);
         }
     };
 
-   private final NetworkEventPublisher datagramReceivePublish = new NetworkEventPublisher() {
+   private final DatagramReceivePublisher datagramReceivePublish = new DatagramReceivePublisher() {
 
         @Override
         public boolean isEnabled() {
@@ -103,13 +100,12 @@ public final class JFREventGateway implements EventGateway {
         }
 
         @Override
-        public void log(long start, long byteCount, SocketAddress remote) {
-            jdk.jfr.events.DatagramReceiveEvent.processEvent(start, byteCount, remote);
+        public void commit(long start, long duration, String host, String address, int port, long timeout, long byteRead) {
+            DatagramReceiveEvent.commit(start, duration, host, address, port, timeout, byteRead);
         }
-
    };
 
-    private final NetworkEventPublisher socketReadPublisher = new NetworkEventPublisher() {
+    private final SocketReadPublisher socketReadPublisher = new SocketReadPublisher() {
         @Override
         public boolean isEnabled() {
             EventConfiguration config = EventConfigurations.SOCKET_READ;
@@ -127,12 +123,12 @@ public final class JFREventGateway implements EventGateway {
         }
 
         @Override
-        public void log(long start, long byteCount, SocketAddress remote) {
-            SocketReadEvent.processEvent(start, byteCount, remote);
+        public void commit(long start, long duration, String host, String address, int port, long timeout, long byteRead, boolean endOfStream) {
+            SocketReadEvent.commit(start, duration, host, address, port, timeout, byteRead, endOfStream);
         }
     };
 
-    private final NetworkEventPublisher socketWritePublisher = new NetworkEventPublisher() {
+    private final SocketWritePublisher socketWritePublisher = new SocketWritePublisher() {
 
         @Override
         public boolean isEnabled() {
@@ -151,9 +147,8 @@ public final class JFREventGateway implements EventGateway {
         }
 
         @Override
-        public void log(long start, long byteCount, SocketAddress remote) {
-            SocketWriteEvent.processEvent(start, byteCount, remote);
+        public void commit(long start, long duration, String host, String address, int port, long bytes) {
+            SocketWriteEvent.commit(start, duration, host, address, port, bytes);
         }
-
     };
 }

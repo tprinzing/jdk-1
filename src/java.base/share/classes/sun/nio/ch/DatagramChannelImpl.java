@@ -71,7 +71,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
-import jdk.internal.event.EventGateway;
+import jdk.internal.event.DatagramReceivePublisher;
+import jdk.internal.event.DatagramSendPublisher;
+import jdk.internal.event.EventService;
 import jdk.internal.ref.CleanerFactory;
 import sun.net.ResourceManager;
 import sun.net.ext.ExtendedSocketOptions;
@@ -171,6 +173,9 @@ class DatagramChannelImpl
 
     // -- End of fields protected by stateLock
 
+    // event logging
+    private static final DatagramSendPublisher sendEvents = EventService.service.datagramSend();
+    private static final DatagramReceivePublisher receiveEvents = EventService.service.datagramReceive();
 
     DatagramChannelImpl(SelectorProvider sp, boolean interruptible) throws IOException {
         this(sp, (Net.isIPv6Available()
@@ -557,24 +562,20 @@ class DatagramChannelImpl
 
     @Override
     public SocketAddress receive(ByteBuffer dst) throws IOException {
-        var event = EventGateway.service.datagramReceive();
-        if (! event.isEnabled()) {
-            return receiveImpl(dst);
-        }
         int bytesRead = 0;
         long start  = 0;
         SocketAddress remoteAddress = null;
         try {
             long pos = dst.position();
-            start =  event.timestamp();;
-            remoteAddress = receiveImpl(dst);
+            start =  receiveEvents.timestamp();;
+            remoteAddress = receiveMeasured(dst);
             bytesRead = (int) (dst.position() - pos);
         } finally {
-             event.log(start, bytesRead, remoteAddress);
+             receiveEvents.log(start, bytesRead, remoteAddress);
         }
         return remoteAddress;
     }
-    private SocketAddress receiveImpl(ByteBuffer dst) throws IOException {
+    private SocketAddress receiveMeasured(ByteBuffer dst) throws IOException {
         if (dst.isReadOnly())
             throw new IllegalArgumentException("Read-only buffer");
         readLock.lock();
@@ -666,25 +667,21 @@ class DatagramChannelImpl
      * @throws SocketTimeoutException if the timeout elapses
      */
     SocketAddress blockingReceive(ByteBuffer dst, long nanos) throws IOException {
-        var event = EventGateway.service.datagramReceive();
-        if (! event.isEnabled()) {
-            return blockingReceiveImpl(dst, nanos);
-        }
         int bytesRead = 0;
         long start  = 0;
         SocketAddress remoteAddress = null;
         try {
             long pos = dst.position();
-            start =  event.timestamp();;
-            remoteAddress = blockingReceiveImpl(dst, nanos);
+            start =  receiveEvents.timestamp();;
+            remoteAddress = blockingReceiveMeasured(dst, nanos);
             bytesRead = (int) (dst.position() - pos);
         } finally {
-             event.log(start, bytesRead, remoteAddress);
+             receiveEvents.log(start, bytesRead, remoteAddress);
         }
         return remoteAddress;
     }
 
-    SocketAddress blockingReceiveImpl(ByteBuffer dst, long nanos) throws IOException {
+    SocketAddress blockingReceiveMeasured(ByteBuffer dst, long nanos) throws IOException {
         readLock.lock();
         try {
             ensureOpen();
@@ -850,10 +847,17 @@ class DatagramChannelImpl
     public int send(ByteBuffer src, SocketAddress target)
         throws IOException
     {
-        return (int) EventGateway.service.datagramSend().measure(target, () -> sendImpl(src,target));
+        int nbytes = 0;
+        long start = sendEvents.timestamp();
+        try {
+            nbytes = sendMeasured(src, target);
+        } finally {
+            sendEvents.log(start, nbytes, target);
+        }
+        return nbytes;
     }
 
-    private int sendImpl(ByteBuffer src, SocketAddress target)
+    private int sendMeasured(ByteBuffer src, SocketAddress target)
     throws IOException
     {
         Objects.requireNonNull(src);
@@ -1007,22 +1011,18 @@ class DatagramChannelImpl
 
     @Override
     public int read(ByteBuffer buf) throws IOException {
-        var event = EventGateway.service.datagramReceive();
-        if (! event.isEnabled()) {
-            return readImpl(buf);
-        }
         int bytesRead = 0;
         long start  = 0;
         try {
-            start = event.timestamp();;
-            bytesRead = readImpl(buf);
+            start = receiveEvents.timestamp();;
+            bytesRead = readMeasured(buf);
         } finally {
-            event.log(start, bytesRead, getRemoteAddress());
+            receiveEvents.log(start, bytesRead, getRemoteAddress());
         }
         return bytesRead;
     }
 
-    private int readImpl(ByteBuffer buf) throws IOException {
+    private int readMeasured(ByteBuffer buf) throws IOException {
         Objects.requireNonNull(buf);
 
         readLock.lock();
@@ -1053,22 +1053,18 @@ class DatagramChannelImpl
     public long read(ByteBuffer[] dsts, int offset, int length)
             throws IOException
     {
-        var event = EventGateway.service.datagramReceive();
-        if (! event.isEnabled()) {
-            return readImpl(dsts, offset, length);
-        }
         long bytesRead = 0;
         long start = 0;
         try {
-            start =  event.timestamp();
-            bytesRead = readImpl(dsts, offset, length);
+            start =  receiveEvents.timestamp();
+            bytesRead = readMeasured(dsts, offset, length);
         } finally {
-             event.log(start, bytesRead, getRemoteAddress());
+             receiveEvents.log(start, bytesRead, getRemoteAddress());
         }
         return bytesRead;
     }
 
-    private long readImpl(ByteBuffer[] dsts, int offset, int length)
+    private long readMeasured(ByteBuffer[] dsts, int offset, int length)
         throws IOException
     {
         Objects.checkFromIndexSize(offset, length, dsts.length);
@@ -1154,10 +1150,17 @@ class DatagramChannelImpl
 
     @Override
     public int write(ByteBuffer buf) throws IOException {
-        return (int) EventGateway.service.datagramSend().measure(getRemoteAddress(), () -> writeImpl(buf));
+        int nbytes = 0;
+        long start = sendEvents.timestamp();
+        try {
+            nbytes = writeMeasured(buf);
+        } finally {
+            sendEvents.log(start, nbytes, getRemoteAddress());
+        }
+        return nbytes;
     }
 
-    private int writeImpl(ByteBuffer buf) throws IOException {
+    private int writeMeasured(ByteBuffer buf) throws IOException {
         Objects.requireNonNull(buf);
 
         writeLock.lock();
@@ -1188,10 +1191,17 @@ class DatagramChannelImpl
     public long write(ByteBuffer[] srcs, int offset, int length)
         throws IOException
     {
-        return EventGateway.service.datagramSend().measure(getRemoteAddress(), () -> writeImpl(srcs, offset, length));
+        long nbytes = 0;
+        long start = sendEvents.timestamp();
+        try {
+            nbytes = writeMeasured(srcs, offset, length);
+        } finally {
+            sendEvents.log(start, nbytes, getRemoteAddress());
+        }
+        return nbytes;
     }
 
-    private long writeImpl(ByteBuffer[] srcs, int offset, int length)
+    private long writeMeasured(ByteBuffer[] srcs, int offset, int length)
     throws IOException
     {
         Objects.checkFromIndexSize(offset, length, srcs.length);

@@ -25,19 +25,20 @@
 
 package jdk.internal.event;
 
-import java.io.IOException;
-import java.net.SocketAddress;
-import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
-import java.util.function.Function;
 
-public interface EventGateway {
+/**
+ * Service to publish events from the {@code java.base} module.  This is not
+ * a general purpose service as it is only exported to the {@code jdk.jfr}
+ * module.
+ */
+public interface EventService {
 
-    private static EventGateway locateService() {
-        EventGateway svc = null;
+    private static EventService locateService() {
+        EventService svc = null;
         try {
-            var s = ServiceLoader.load(EventGateway.class).findFirst();
+            var s = ServiceLoader.load(EventService.class).findFirst();
             if (s.isPresent()) {
                 svc = s.get();
             }
@@ -45,74 +46,44 @@ public interface EventGateway {
             e.printStackTrace();
         } finally {
             if (svc == null) {
-                svc = new EventGateway() { };
+                svc = new EventService() { };
             }
         }
         return svc;
     }
 
     /**
-     * The service to use for all event logging.
+     * The service to use for all event logging.  If a service provider
+     * cannot be located (the {@jdk.jfr} module not loaded), a default
+     * stub service is provided that performs no logging of events.
      */
-    static final EventGateway service = locateService();
+    static final EventService service = locateService();
 
     /**
      *
      * @return the object to use to publish network events for socket write
      *   operations.  The default object will not attempt to log any events.
      */
-    default NetworkEventPublisher socketRead() { return noPublish; }
+    default SocketReadPublisher socketRead() { return SocketReadPublisher.noPublish; }
 
     /**
      *
      * @return the object to use to publish network events for socket read
      *   operations.  The default object will not attempt to log any events.
      */
-    default NetworkEventPublisher socketWrite() { return noPublish; }
+    default SocketWritePublisher socketWrite() { return SocketWritePublisher.noPublish; }
 
     /**
      *
      * @return the object to use to publish network events for datagram send
      *   operations.  The default object will not attempt to log any events.
      */
-    default NetworkEventPublisher datagramSend() { return noPublish; }
+    default DatagramSendPublisher datagramSend() { return DatagramSendPublisher.noPublish; }
 
     /**
      *
      * @return the object to use to publish network events for datagram receive
      *   operations.  The default object will not attempt to log any events.
      */
-    default NetworkEventPublisher datagramReceive() { return noPublish; }
-
-    interface MeasuredFunction {
-
-        long apply() throws IOException;
-    }
-
-    static final NetworkEventPublisher noPublish = new NetworkEventPublisher() { };
-    interface NetworkEventPublisher {
-
-        default long measure(SocketAddress address, MeasuredFunction function) throws IOException {
-            if (! isEnabled()) {
-                return function.apply();
-            }
-            long nbytes = 0;
-            long start = 0;
-            try {
-                start =  timestamp();
-                nbytes = function.apply();
-            } finally {
-                log(start, nbytes, address);
-            }
-            return nbytes;
-        }
-
-        default boolean isEnabled() { return false; }
-
-        default boolean shouldCommit(long duration) { return false; }
-
-        default long timestamp() { return 0; }
-
-        default void log(long start, long bytesRead, SocketAddress remote) {}
-    }
+    default DatagramReceivePublisher datagramReceive() { return DatagramReceivePublisher.noPublish; }
 }

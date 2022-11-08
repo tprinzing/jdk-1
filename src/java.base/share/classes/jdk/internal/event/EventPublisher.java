@@ -23,45 +23,18 @@
  * questions.
  */
 
-package jdk.jfr.events;
+package jdk.internal.event;
 
-import jdk.jfr.Category;
-import jdk.jfr.Description;
-import jdk.jfr.Label;
-import jdk.jfr.DataAmount;
-import jdk.jfr.Name;
-import jdk.jfr.internal.Type;
-import jdk.jfr.internal.event.EventConfiguration;
+/**
+ * Interface to represent the basis of JFR event publishing of jdk.base events
+ * using the service provider mechanism.
+ */
+public interface EventPublisher {
 
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.net.UnixDomainSocketAddress;
+        default boolean isEnabled() { return false; }
 
-@Name(Type.EVENT_NAME_PREFIX + "DatagramSend")
-@Label("Datagram Send")
-@Category("Java Application")
-@Description("Writing data to a socket")
-public final class DatagramSendEvent extends AbstractJDKEvent {
+        default boolean shouldCommit(long duration) { return false; }
 
-    // The order of these fields must be the same as the parameters in
-    // commit(..., String, String, int, long)
-
-    @Label("Remote Host")
-    public String host;
-
-    @Label("Remote Address")
-    public String address;
-
-    @Label("Remote Port")
-    public int port;
-
-    @Label("Bytes Written")
-    @Description("Number of bytes written to the socket")
-    @DataAmount
-    public long bytesWritten;
-
-    public static void commit(long start, long duration, String host, String address, int port, long bytes) {
-        // Generated
-    }
+        default long timestamp() { return 0; }
 
 }
