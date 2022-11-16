@@ -121,8 +121,8 @@ public final class JFREventService implements EventService {
         }
 
         @Override
-        public void commit(long start, long duration, String host, String address, int port, long timeout, long byteRead, boolean endOfStream) {
-            SocketReadEvent.commit(start, duration, host, address, port, timeout, byteRead, endOfStream);
+        public void commit(long start, long duration, String host, String address, int port, long timeout, long byteRead, boolean endOfStream, String exceptionMessage) {
+            SocketReadEvent.commit(start, duration, host, address, port, timeout, byteRead, endOfStream, exceptionMessage);
         }
     };
 
@@ -145,8 +145,8 @@ public final class JFREventService implements EventService {
         }
 
         @Override
-        public void commit(long start, long duration, String host, String address, int port, long bytes) {
-            SocketWriteEvent.commit(start, duration, host, address, port, bytes);
+        public void commit(long start, long duration, String host, String address, int port, long bytes, String exceptionMessage) {
+            SocketWriteEvent.commit(start, duration, host, address, port, bytes, exceptionMessage);
         }
     };
 }

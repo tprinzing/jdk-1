@@ -69,7 +69,10 @@ public final class SocketReadEvent extends AbstractJDKEvent {
     @Description("If end of stream was reached")
     public boolean endOfStream;
 
-    public static void commit(long start, long duration, String host, String address, int port, long timeout, long byteRead, boolean endOfStream) {
+    @Label("Exception Message")
+    public String exceptionMessage;
+
+    public static void commit(long start, long duration, String host, String address, int port, long timeout, long byteRead, boolean endOfStream, String exceptionMessage) {
         // Generated
     }
 

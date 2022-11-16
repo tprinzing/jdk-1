@@ -34,7 +34,7 @@ import java.net.UnixDomainSocketAddress;
  */
 public interface SocketWriteLogger extends EventLogger {
 
-    default void commit(long start, long duration, String host, String address, int port, long bytes) {}
+    default void commit(long start, long duration, String host, String address, int port, long bytes, String exceptionMessage) {}
 
     /**
      * Execute the standard boilerplate that proceeds a potential call to the machine generated
@@ -44,10 +44,11 @@ public interface SocketWriteLogger extends EventLogger {
      * @param bytesWritten  how many bytes were sent
      * @param remote  the address of the remote socket being written to
      */
-    default void log(long start, long bytesWritten, SocketAddress remote) {
+    default void log(long start, long bytesWritten, SocketAddress remote, Throwable thrown) {
         if (isEnabled()) {
             long duration = timestamp() - start;
             if (shouldCommit(duration)) {
+                String exceptionMessage = stringifyOrNull(thrown);
                 long bytes = bytesWritten < 0 ? 0 : bytesWritten;
                 if (remote instanceof InetSocketAddress isa) {
                     String hostString = isa.getAddress().toString();
@@ -56,11 +57,11 @@ public interface SocketWriteLogger extends EventLogger {
                     String host = hostString.substring(0, delimiterIndex);
                     String address = hostString.substring(delimiterIndex + 1);
                     int port = isa.getPort();
-                    commit(start, duration, host, address, port, bytes);
+                    commit(start, duration, host, address, port, bytes, exceptionMessage);
                 } else if (remote instanceof UnixDomainSocketAddress) {
                     UnixDomainSocketAddress udsa = (UnixDomainSocketAddress) remote;
                     String path = "[" + udsa.getPath().toString() + "]";
-                    commit(start, duration, "Unix domain socket", path, 0, bytes);
+                    commit(start, duration, "Unix domain socket", path, 0, bytes, exceptionMessage);
                 }
             }
         }
@@ -68,6 +69,6 @@ public interface SocketWriteLogger extends EventLogger {
 
     static final SocketWriteLogger noPublish = new SocketWriteLogger() {
         @Override
-        public void log(long start, long bytesWritten, SocketAddress remote) { }
+        public void log(long start, long bytesWritten, SocketAddress remote, Throwable thrown) { }
     };
 }

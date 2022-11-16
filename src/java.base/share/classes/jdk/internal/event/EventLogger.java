@@ -31,10 +31,17 @@ package jdk.internal.event;
  */
 public interface EventLogger {
 
-        default boolean isEnabled() { return false; }
+    default boolean isEnabled() { return false; }
 
-        default boolean shouldCommit(long duration) { return false; }
+    default boolean shouldCommit(long duration) { return false; }
 
-        default long timestamp() { return 0; }
+    default long timestamp() { return 0; }
 
+    default String stringifyOrNull(Throwable ex) {
+        if (ex == null) {
+            return null;
+        }
+        var m = ex.getMessage();
+        return m != null ? m : ex.toString();
+    }
 }

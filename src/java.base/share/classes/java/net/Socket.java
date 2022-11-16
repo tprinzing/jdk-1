@@ -1031,12 +1031,16 @@ public class Socket implements java.io.Closeable {
 
         @Override
         public int read(byte[] b, int off, int len) throws IOException {
+            Throwable thrown = null;
             int nbytes = 0;
             long start = readEvents.timestamp();
             try {
-                nbytes = readMeasured(b,off,len);
+                nbytes = readMeasured(b, off, len);
+            } catch (Throwable t) {
+                thrown = t;
+                throw t;
             } finally {
-                readEvents.log(start, nbytes, parent.getRemoteSocketAddress());
+                readEvents.log(start, nbytes, parent.getRemoteSocketAddress(), thrown);
             }
             return nbytes;
         }
@@ -1138,11 +1142,15 @@ public class Socket implements java.io.Closeable {
 
         @Override
         public void write(byte[] b, int off, int len) throws IOException {
+            Throwable thrown = null;
             long start = writeEvents.timestamp();
             try {
                 writeMeasured(b,off,len);
+            } catch (Throwable t) {
+                thrown = t;
+                throw t;
             } finally {
-                writeEvents.log(start, len, parent.getRemoteSocketAddress());
+                writeEvents.log(start, len, parent.getRemoteSocketAddress(), thrown);
             }
         }
 

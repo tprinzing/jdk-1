@@ -39,10 +39,11 @@ public interface SocketReadLogger extends EventLogger {
      * @param bytesRead  how many bytes were received
      * @param remote  the address of the remote socket being written to
      */
-    default void log(long start, long bytesRead, SocketAddress remote) {
+    default void log(long start, long bytesRead, SocketAddress remote, Throwable thrown) {
         if (isEnabled()) {
             long duration = timestamp() - start;
             if (shouldCommit(duration)) {
+                String exceptionMessage = stringifyOrNull(thrown);
                 if (remote instanceof InetSocketAddress isa) {
                     String hostString = isa.getAddress().toString();
                     int delimiterIndex = hostString.lastIndexOf('/');
@@ -51,27 +52,27 @@ public interface SocketReadLogger extends EventLogger {
                     String address = hostString.substring(delimiterIndex + 1);
                     int port = isa.getPort();
                     if (bytesRead < 0) {
-                        commit(start, duration, host, address, port, 0, 0L, true);
+                        commit(start, duration, host, address, port, 0, 0L, true, exceptionMessage);
                     } else {
-                        commit(start, duration, host, address, port, 0, bytesRead, false);
+                        commit(start, duration, host, address, port, 0, bytesRead, false, exceptionMessage);
                     }
                 } else if (remote instanceof UnixDomainSocketAddress) {
                     UnixDomainSocketAddress udsa = (UnixDomainSocketAddress) remote;
                     String path = "[" + udsa.getPath().toString() + "]";
                     if (bytesRead < 0) {
-                        commit(start, duration, "Unix domain socket", path, 0, 0, 0L, true);
+                        commit(start, duration, "Unix domain socket", path, 0, 0, 0L, true, exceptionMessage);
                     } else {
-                        commit(start, duration, "Unix domain socket", path, 0, 0, bytesRead, false);
+                        commit(start, duration, "Unix domain socket", path, 0, 0, bytesRead, false, exceptionMessage);
                     }
                 }
             }
         }
     }
-    default void commit(long start, long duration, String host, String address, int port, long timeout, long byteRead, boolean endOfStream) {}
+    default void commit(long start, long duration, String host, String address, int port, long timeout, long byteRead, boolean endOfStream, String exceptionMessage) {}
 
     static final SocketReadLogger noPublish = new SocketReadLogger() {
         @Override
-        public void log(long start, long bytesRead, SocketAddress remote) {
+        public void log(long start, long bytesRead, SocketAddress remote, Throwable thrown) {
         }
     };
 }

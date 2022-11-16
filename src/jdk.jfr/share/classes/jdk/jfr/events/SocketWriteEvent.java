@@ -60,7 +60,10 @@ public final class SocketWriteEvent extends AbstractJDKEvent {
     @DataAmount
     public long bytesWritten;
 
-    public static void commit(long start, long duration, String host, String address, int port, long bytes) {
+    @Label("Exception Message")
+    public String exceptionMessage;
+
+    public static void commit(long start, long duration, String host, String address, int port, long bytes, String exceptionMessage) {
         // Generated
     }
 

@@ -412,10 +412,14 @@ class SocketChannelImpl
     public int read(ByteBuffer buf) throws IOException {
         int nbytes = 0;
         long start = readEvents.timestamp();
+        Throwable thrown = null;
         try {
             nbytes = readMeasured(buf);
+        } catch (Throwable t) {
+            thrown = t;
+            throw t;
         } finally {
-            readEvents.log(start, nbytes, getRemoteAddress());
+            readEvents.log(start, nbytes, getRemoteAddress(), thrown);
         }
         return nbytes;
     }
@@ -467,10 +471,14 @@ class SocketChannelImpl
     {
         long nbytes = 0;
         long start = readEvents.timestamp();
+        Throwable thrown = null;
         try {
-            nbytes = readMeasured(dsts,offset,length);
+            nbytes = readMeasured(dsts, offset, length);
+        } catch (Throwable t) {
+            thrown = t;
+            throw t;
         } finally {
-            readEvents.log(start, nbytes, getRemoteAddress());
+            readEvents.log(start, nbytes, getRemoteAddress(), thrown);
         }
         return nbytes;
     }
@@ -563,10 +571,14 @@ class SocketChannelImpl
     public int write(ByteBuffer buf) throws IOException {
         int nbytes = 0;
         long start = writeEvents.timestamp();
+        Throwable thrown = null;
         try {
             nbytes = writeMeasured(buf);
+        } catch (Throwable t) {
+            thrown = t;
+            throw t;
         } finally {
-            writeEvents.log(start, nbytes, getRemoteAddress());
+            writeEvents.log(start, nbytes, getRemoteAddress(), thrown);
         }
         return nbytes;
     }
@@ -604,10 +616,14 @@ class SocketChannelImpl
     {
         long nbytes = 0;
         long start = writeEvents.timestamp();
+        Throwable thrown = null;
         try {
             nbytes = writeMeasured(srcs,offset,length);
+        } catch (Throwable t) {
+            thrown = t;
+            throw t;
         } finally {
-            writeEvents.log(start, nbytes, getRemoteAddress());
+            writeEvents.log(start, nbytes, getRemoteAddress(), thrown);
         }
         return nbytes;
     }
