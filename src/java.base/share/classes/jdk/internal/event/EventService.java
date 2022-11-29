@@ -32,32 +32,10 @@ import java.util.ServiceLoader;
  * Service to publish events from the {@code java.base} module.  This is not
  * a general purpose service as it is only exported to the {@code jdk.jfr}
  * module.
+ *
+ * @see EventServiceLookup
  */
 public interface EventService {
-
-    private static EventService locateService() {
-        EventService svc = null;
-        try {
-            var s = ServiceLoader.load(EventService.class).findFirst();
-            if (s.isPresent()) {
-                svc = s.get();
-            }
-        } catch (ServiceConfigurationError e) {
-            e.printStackTrace();
-        } finally {
-            if (svc == null) {
-                svc = new EventService() { };
-            }
-        }
-        return svc;
-    }
-
-    /**
-     * The service to use for all event logging.  If a service provider
-     * cannot be located (the {@jdk.jfr} module not loaded), a default
-     * stub service is provided that performs no logging of events.
-     */
-    static final EventService service = locateService();
 
     /**
      *

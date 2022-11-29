@@ -26,6 +26,7 @@
 package java.net;
 
 import jdk.internal.event.EventService;
+import jdk.internal.event.EventServiceLookup;
 import jdk.internal.event.SocketReadLogger;
 import jdk.internal.event.SocketWriteLogger;
 import sun.security.util.SecurityConstants;
@@ -132,12 +133,6 @@ public class Socket implements java.io.Closeable {
             throw new InternalError(e);
         }
     }
-
-    /**
-     * Event logging
-     */
-    private static final SocketReadLogger readEvents = EventService.service.socketRead();
-    private static final SocketWriteLogger writeEvents = EventService.service.socketWrite();
 
     /**
      * Creates an unconnected Socket.
@@ -1031,6 +1026,7 @@ public class Socket implements java.io.Closeable {
 
         @Override
         public int read(byte[] b, int off, int len) throws IOException {
+            SocketReadLogger readEvents = EventServiceLookup.lookup().socketRead();
             Throwable thrown = null;
             int nbytes = 0;
             long start = readEvents.timestamp();
@@ -1142,6 +1138,7 @@ public class Socket implements java.io.Closeable {
 
         @Override
         public void write(byte[] b, int off, int len) throws IOException {
+            SocketWriteLogger writeEvents = EventServiceLookup.lookup().socketWrite();
             Throwable thrown = null;
             long start = writeEvents.timestamp();
             try {

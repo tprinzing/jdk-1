@@ -60,6 +60,7 @@ import static java.net.StandardProtocolFamily.INET6;
 import static java.net.StandardProtocolFamily.UNIX;
 
 import jdk.internal.event.EventService;
+import jdk.internal.event.EventServiceLookup;
 import jdk.internal.event.SocketReadLogger;
 import jdk.internal.event.SocketWriteLogger;
 import sun.net.ConnectionResetException;
@@ -101,10 +102,6 @@ class SocketChannelImpl
 
     // Connection reset protected by readLock
     private boolean connectionReset;
-
-    // Event logging
-    private static final SocketReadLogger readEvents = EventService.service.socketRead();
-    private static final SocketWriteLogger writeEvents = EventService.service.socketWrite();
 
     // -- The following fields are protected by stateLock
 
@@ -410,6 +407,7 @@ class SocketChannelImpl
 
     @Override
     public int read(ByteBuffer buf) throws IOException {
+        SocketReadLogger readEvents = EventServiceLookup.lookup().socketRead();
         int nbytes = 0;
         long start = readEvents.timestamp();
         Throwable thrown = null;
@@ -469,6 +467,7 @@ class SocketChannelImpl
     public long read(ByteBuffer[] dsts, int offset, int length)
             throws IOException
     {
+        SocketReadLogger readEvents = EventServiceLookup.lookup().socketRead();
         long nbytes = 0;
         long start = readEvents.timestamp();
         Throwable thrown = null;
@@ -569,6 +568,7 @@ class SocketChannelImpl
 
     @Override
     public int write(ByteBuffer buf) throws IOException {
+        SocketWriteLogger writeEvents = EventServiceLookup.lookup().socketWrite();
         int nbytes = 0;
         long start = writeEvents.timestamp();
         Throwable thrown = null;
@@ -614,6 +614,7 @@ class SocketChannelImpl
     public long write(ByteBuffer[] srcs, int offset, int length)
             throws IOException
     {
+        SocketWriteLogger writeEvents = EventServiceLookup.lookup().socketWrite();
         long nbytes = 0;
         long start = writeEvents.timestamp();
         Throwable thrown = null;

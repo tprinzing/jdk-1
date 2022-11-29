@@ -74,6 +74,7 @@ import java.util.function.Consumer;
 import jdk.internal.event.DatagramReceiveLogger;
 import jdk.internal.event.DatagramSendLogger;
 import jdk.internal.event.EventService;
+import jdk.internal.event.EventServiceLookup;
 import jdk.internal.ref.CleanerFactory;
 import sun.net.ResourceManager;
 import sun.net.ext.ExtendedSocketOptions;
@@ -172,10 +173,6 @@ class DatagramChannelImpl
     private volatile boolean forcedNonBlocking;
 
     // -- End of fields protected by stateLock
-
-    // event logging
-    private static final DatagramSendLogger sendEvents = EventService.service.datagramSend();
-    private static final DatagramReceiveLogger receiveEvents = EventService.service.datagramReceive();
 
     DatagramChannelImpl(SelectorProvider sp, boolean interruptible) throws IOException {
         this(sp, (Net.isIPv6Available()
@@ -562,6 +559,7 @@ class DatagramChannelImpl
 
     @Override
     public SocketAddress receive(ByteBuffer dst) throws IOException {
+        DatagramReceiveLogger receiveEvents = EventServiceLookup.lookup().datagramReceive();
         int bytesRead = 0;
         long start  = 0;
         SocketAddress remoteAddress = null;
@@ -667,6 +665,7 @@ class DatagramChannelImpl
      * @throws SocketTimeoutException if the timeout elapses
      */
     SocketAddress blockingReceive(ByteBuffer dst, long nanos) throws IOException {
+        DatagramReceiveLogger receiveEvents = EventServiceLookup.lookup().datagramReceive();
         int bytesRead = 0;
         long start  = 0;
         SocketAddress remoteAddress = null;
@@ -847,6 +846,7 @@ class DatagramChannelImpl
     public int send(ByteBuffer src, SocketAddress target)
         throws IOException
     {
+        DatagramSendLogger sendEvents = EventServiceLookup.lookup().datagramSend();
         int nbytes = 0;
         long start = sendEvents.timestamp();
         try {
@@ -1011,6 +1011,7 @@ class DatagramChannelImpl
 
     @Override
     public int read(ByteBuffer buf) throws IOException {
+        DatagramReceiveLogger receiveEvents = EventServiceLookup.lookup().datagramReceive();
         int bytesRead = 0;
         long start  = 0;
         try {
@@ -1053,6 +1054,7 @@ class DatagramChannelImpl
     public long read(ByteBuffer[] dsts, int offset, int length)
             throws IOException
     {
+        DatagramReceiveLogger receiveEvents = EventServiceLookup.lookup().datagramReceive();
         long bytesRead = 0;
         long start = 0;
         try {
@@ -1150,6 +1152,7 @@ class DatagramChannelImpl
 
     @Override
     public int write(ByteBuffer buf) throws IOException {
+        DatagramSendLogger sendEvents = EventServiceLookup.lookup().datagramSend();
         int nbytes = 0;
         long start = sendEvents.timestamp();
         try {
@@ -1191,6 +1194,7 @@ class DatagramChannelImpl
     public long write(ByteBuffer[] srcs, int offset, int length)
         throws IOException
     {
+        DatagramSendLogger sendEvents = EventServiceLookup.lookup().datagramSend();
         long nbytes = 0;
         long start = sendEvents.timestamp();
         try {
