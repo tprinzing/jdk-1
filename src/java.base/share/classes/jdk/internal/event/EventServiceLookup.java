@@ -21,17 +21,18 @@ public class EventServiceLookup {
             e.printStackTrace();
         } finally {
             if (svc == null) {
-                svc = getStubService();
+                // stub service that does nothing
+                svc = new EventService() { };
             }
         }
         return svc;
     }
 
-    private static EventService getStubService() {
-        if (stub == null) {
-            stub = new EventService() { };
+    private static EventService getInitService() {
+        if (init == null) {
+            init = locateService();
         }
-        return stub;
+        return init;
     }
 
     private static EventService getService() {
@@ -47,10 +48,13 @@ public class EventServiceLookup {
      * stub service is provided that performs no logging of events.
      */
     public synchronized static EventService lookup() {
-        return (VM.isBooted()) ? getService() : getStubService();
+        if (service != null) {
+            return service;
+        }
+        return (VM.isBooted()) ? getService() : getInitService();
     }
 
-    private static EventService stub = null;
+    private static EventService init = null;
     private static EventService service = null;
 
 
