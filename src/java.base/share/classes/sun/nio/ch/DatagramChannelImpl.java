@@ -564,6 +564,9 @@ class DatagramChannelImpl
     @Override
     public SocketAddress receive(ByteBuffer dst) throws IOException {
         DatagramReceiveLogger receiveEvents = EventServiceLookup.lookup().datagramReceive();
+        if (! receiveEvents.isEnabled()) {
+            return receiveMeasured(dst);
+        }
         int bytesRead = 0;
         long start  = 0;
         SocketAddress remoteAddress = null;
@@ -856,6 +859,9 @@ class DatagramChannelImpl
         throws IOException
     {
         DatagramSendLogger sendEvents = EventServiceLookup.lookup().datagramSend();
+        if (! sendEvents.isEnabled()) {
+            return sendMeasured(src, target);
+        }
         int nbytes = 0;
         long start = sendEvents.timestamp();
         try {
@@ -1024,6 +1030,9 @@ class DatagramChannelImpl
     @Override
     public int read(ByteBuffer buf) throws IOException {
         DatagramReceiveLogger receiveEvents = EventServiceLookup.lookup().datagramReceive();
+        if (! receiveEvents.isEnabled()) {
+            return readMeasured(buf);
+        }
         int bytesRead = 0;
         long start  = 0;
         try {
@@ -1067,6 +1076,9 @@ class DatagramChannelImpl
             throws IOException
     {
         DatagramReceiveLogger receiveEvents = EventServiceLookup.lookup().datagramReceive();
+        if (! receiveEvents.isEnabled()) {
+            return readMeasured(dsts, offset, length);
+        }
         long bytesRead = 0;
         long start = 0;
         try {
@@ -1165,6 +1177,9 @@ class DatagramChannelImpl
     @Override
     public int write(ByteBuffer buf) throws IOException {
         DatagramSendLogger sendEvents = EventServiceLookup.lookup().datagramSend();
+        if (! sendEvents.isEnabled()) {
+            return writeMeasured(buf);
+        }
         int nbytes = 0;
         long start = sendEvents.timestamp();
         try {
@@ -1207,6 +1222,9 @@ class DatagramChannelImpl
         throws IOException
     {
         DatagramSendLogger sendEvents = EventServiceLookup.lookup().datagramSend();
+        if (! sendEvents.isEnabled()) {
+            return writeMeasured(srcs, offset, length);
+        }
         long nbytes = 0;
         long start = sendEvents.timestamp();
         try {

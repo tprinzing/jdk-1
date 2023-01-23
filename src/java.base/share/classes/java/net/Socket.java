@@ -25,7 +25,6 @@
 
 package java.net;
 
-import jdk.internal.event.EventService;
 import jdk.internal.event.EventServiceLookup;
 import jdk.internal.event.SocketReadLogger;
 import jdk.internal.event.SocketWriteLogger;
@@ -1027,20 +1026,36 @@ public class Socket implements java.io.Closeable {
         }
 
         @Override
-        public int read(byte[] b, int off, int len) throws IOException {
+        public int read(byte b[], int off, int length) throws IOException {
             SocketReadLogger readEvents = EventServiceLookup.lookup().socketRead();
+            if (!readEvents.isEnabled()) {
+                return readMeasured(b, off, length);
+            }
+            int bytesRead = 0;
+            long start = 0;
             Throwable thrown = null;
-            int nbytes = 0;
-            long start = readEvents.timestamp();
             try {
-                nbytes = readMeasured(b, off, len);
+                start = readEvents.timestamp();
+                bytesRead = readMeasured(b, off, length);
             } catch (Throwable t) {
                 thrown = t;
                 throw t;
             } finally {
-                readEvents.log(start, nbytes, parent.getRemoteSocketAddress(), thrown);
+                long duration = readEvents.timestamp() - start;
+                if (readEvents.shouldCommit(duration)) {
+                    InetAddress remote = parent.getInetAddress();
+                    String host = remote.getHostName();
+                    String address = remote.getHostAddress();
+                    int port = parent.getPort();
+                    int timeout = parent.getSoTimeout();
+                    if (bytesRead < 0) {
+                        readEvents.commit(start, duration, host, address, port, timeout, 0L, true, readEvents.stringifyOrNull(thrown));
+                    } else {
+                        readEvents.commit(start, duration, host, address, port, timeout, bytesRead, false, readEvents.stringifyOrNull(thrown));
+                    }
+                }
             }
-            return nbytes;
+            return bytesRead;
         }
 
         private int readMeasured(byte[] b, int off, int len) throws IOException {
@@ -1141,15 +1156,32 @@ public class Socket implements java.io.Closeable {
         @Override
         public void write(byte[] b, int off, int len) throws IOException {
             SocketWriteLogger writeEvents = EventServiceLookup.lookup().socketWrite();
+            if (!writeEvents.isEnabled()) {
+                writeMeasured(b, off, len);
+                return;
+            }
             Throwable thrown = null;
-            long start = writeEvents.timestamp();
+            int bytesWritten = 0;
+            long start = 0;
             try {
-                writeMeasured(b,off,len);
+                start = writeEvents.timestamp();
+                writeMeasured(b, off, len);
+                bytesWritten = len;
             } catch (Throwable t) {
                 thrown = t;
                 throw t;
             } finally {
-                writeEvents.log(start, len, parent.getRemoteSocketAddress(), thrown);
+                long duration = writeEvents.timestamp() - start;
+                if (writeEvents.shouldCommit(duration)) {
+                    InetAddress remote = parent.getInetAddress();
+                    writeEvents.commit(
+                        start,
+                        duration,
+                        remote.getHostName(),
+                        remote.getHostAddress(),
+                        parent.getPort(),
+                        bytesWritten, writeEvents.stringifyOrNull(thrown));
+                }
             }
         }
 

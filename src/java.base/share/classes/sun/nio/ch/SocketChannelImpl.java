@@ -408,6 +408,9 @@ class SocketChannelImpl
     @Override
     public int read(ByteBuffer buf) throws IOException {
         SocketReadLogger readEvents = EventServiceLookup.lookup().socketRead();
+        if (! readEvents.isEnabled()) {
+            return readMeasured(buf);
+        }
         int nbytes = 0;
         long start = readEvents.timestamp();
         Throwable thrown = null;
@@ -468,6 +471,9 @@ class SocketChannelImpl
             throws IOException
     {
         SocketReadLogger readEvents = EventServiceLookup.lookup().socketRead();
+        if (! readEvents.isEnabled()) {
+            return readMeasured(dsts, offset, length);
+        }
         long nbytes = 0;
         long start = readEvents.timestamp();
         Throwable thrown = null;
@@ -569,6 +575,9 @@ class SocketChannelImpl
     @Override
     public int write(ByteBuffer buf) throws IOException {
         SocketWriteLogger writeEvents = EventServiceLookup.lookup().socketWrite();
+        if (! writeEvents.isEnabled()) {
+            return writeMeasured(buf);
+        }
         int nbytes = 0;
         long start = writeEvents.timestamp();
         Throwable thrown = null;
@@ -615,6 +624,9 @@ class SocketChannelImpl
             throws IOException
     {
         SocketWriteLogger writeEvents = EventServiceLookup.lookup().socketWrite();
+        if (! writeEvents.isEnabled()) {
+            return writeMeasured(srcs, offset, length);
+        }
         long nbytes = 0;
         long start = writeEvents.timestamp();
         Throwable thrown = null;
