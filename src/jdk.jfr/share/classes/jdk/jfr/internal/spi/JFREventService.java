@@ -65,7 +65,8 @@ public final class JFREventService implements EventService {
 
         @Override
         public boolean shouldCommit(long duration) {
-            return EventConfigurations.DATAGRAM_SEND.shouldCommit(duration);
+            EventConfiguration config = EventConfigurations.DATAGRAM_SEND;
+            return (config != null) ? config.shouldCommit(duration) : false;
         }
 
         @Override
@@ -89,7 +90,8 @@ public final class JFREventService implements EventService {
 
        @Override
        public boolean shouldCommit(long duration) {
-           return EventConfigurations.DATAGRAM_RECEIVE.shouldCommit(duration);
+           EventConfiguration config = EventConfigurations.DATAGRAM_RECEIVE;
+           return (config != null) ? config.shouldCommit(duration) : false;
        }
 
         @Override
@@ -112,7 +114,8 @@ public final class JFREventService implements EventService {
 
         @Override
         public boolean shouldCommit(long duration) {
-            return EventConfigurations.SOCKET_READ.shouldCommit(duration);
+            EventConfiguration config = EventConfigurations.SOCKET_READ;
+            return (config != null) ? config.shouldCommit(duration) : false;
         }
 
         @Override
@@ -136,7 +139,8 @@ public final class JFREventService implements EventService {
 
         @Override
         public boolean shouldCommit(long duration) {
-            return EventConfigurations.SOCKET_WRITE.shouldCommit(duration);
+            EventConfiguration config = EventConfigurations.SOCKET_WRITE;
+            return (config != null) ? config.shouldCommit(duration) : false;
         }
 
         @Override
