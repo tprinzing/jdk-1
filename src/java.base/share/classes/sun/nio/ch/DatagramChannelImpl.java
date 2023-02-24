@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -602,7 +602,7 @@ class DatagramChannelImpl
                             n = receive(dst, connected);
                         }
                     }
-                    if (n >= 0) {
+                    if (n > 0 || (n == 0 && isOpen())) {
                         // sender address is in socket address buffer
                         sender = sourceSocketAddress();
                     }
@@ -738,7 +738,7 @@ class DatagramChannelImpl
                 park(Net.POLLIN);
                 n = receive(dst, connected);
             }
-            if (n >= 0) {
+            if (n > 0 || (n == 0 && isOpen())) {
                 // sender address is in socket address buffer
                 sender = sourceSocketAddress();
             }
@@ -775,7 +775,7 @@ class DatagramChannelImpl
                     park(Net.POLLIN, remainingNanos);
                     n = receive(dst, connected);
                 }
-                if (n >= 0) {
+                if (n > 0 || (n == 0 && isOpen())) {
                     // sender address is in socket address buffer
                     sender = sourceSocketAddress();
                 }
@@ -824,9 +824,9 @@ class DatagramChannelImpl
         NIO_ACCESS.acquireSession(bb);
         try {
             int n = receive0(fd,
-                            ((DirectBuffer)bb).address() + pos, rem,
-                            sourceSockAddr.address(),
-                            connected);
+                             ((DirectBuffer)bb).address() + pos, rem,
+                             sourceSockAddr.address(),
+                             connected);
             if (n > 0)
                 bb.position(pos + n);
             return n;
