@@ -55,7 +55,7 @@ public final class ThrowableTracer {
 
     public static void traceThrowable(Throwable t, String message) {
         EventConfiguration eventConfiguration = EventConfigurations.EXCEPTION_THROWN;
-        if (eventConfiguration.isEnabled()) {
+        if ((eventConfiguration != null) && eventConfiguration.isEnabled()) {
             long timestamp = EventConfiguration.timestamp();
             ExceptionThrownEvent.commit(timestamp, 0L, message, t.getClass());
         }
