@@ -21,21 +21,14 @@ public class EventServiceLookup {
             e.printStackTrace();
         } finally {
             if (svc == null) {
-                // stub service that does nothing
-                svc = new EventService() { };
+                // use stub service that does nothing
+                svc = init;
             }
         }
         return svc;
     }
 
-    private static EventService getInitService() {
-        if (init == null) {
-            init = locateService();
-        }
-        return init;
-    }
-
-    private static EventService getService() {
+    private static synchronized EventService getService() {
         if (service == null) {
             service = locateService();
         }
@@ -47,15 +40,15 @@ public class EventServiceLookup {
      * cannot be located (the {@code jdk.jfr} module not loaded), a default
      * stub service is provided that performs no logging of events.
      */
-    public synchronized static EventService lookup() {
+    public static EventService lookup() {
         if (service != null) {
             return service;
         }
-        return (VM.isBooted()) ? getService() : getInitService();
+        return (VM.isBooted()) ? getService() : init;
     }
 
-    private static EventService init = null;
-    private static EventService service = null;
+    private static final EventService init = new EventService() { };
+    private static volatile EventService service = null;
 
 
 }
