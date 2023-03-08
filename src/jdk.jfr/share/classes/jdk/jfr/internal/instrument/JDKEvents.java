@@ -89,10 +89,13 @@ public final class JDKEvents {
 
     // This is a list of the classes with instrumentation code that should be applied.
     private static final Class<?>[] instrumentationClasses = new Class<?>[] {
+        /*
         FileInputStreamInstrumentor.class,
         FileOutputStreamInstrumentor.class,
         RandomAccessFileInstrumentor.class,
         FileChannelImplInstrumentor.class
+
+         */
     };
 
     private static final Class<?>[] targetClasses = new Class<?>[instrumentationClasses.length];

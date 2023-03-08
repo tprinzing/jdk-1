@@ -42,7 +42,6 @@ import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
 /*
- * @test
  * @summary Test that will instrument the same classes that JFR will also instrument.
  * @key jfr
  * @requires vm.hasJFR

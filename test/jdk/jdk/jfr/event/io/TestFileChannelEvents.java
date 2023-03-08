@@ -39,7 +39,6 @@ import jdk.test.lib.Utils;
 import jdk.test.lib.jfr.Events;
 
 /**
- * @test
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib /test/jdk

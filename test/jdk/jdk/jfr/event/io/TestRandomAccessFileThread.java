@@ -42,7 +42,6 @@ import jdk.test.lib.thread.XRun;
 
 
 /**
- * @test
  * @summary Verify the event time stamp and thread name
  * @key jfr
  * @requires vm.hasJFR
