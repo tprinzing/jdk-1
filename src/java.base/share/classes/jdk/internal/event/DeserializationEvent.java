@@ -29,6 +29,7 @@ package jdk.internal.event;
  * Event details relating to deserialization.
  */
 
+@SuppressWarnings(value = "missing-explicit-ctor")
 public final class DeserializationEvent extends Event {
     public boolean filterConfigured;
     public String filterStatus;

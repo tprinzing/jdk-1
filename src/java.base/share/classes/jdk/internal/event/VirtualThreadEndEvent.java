@@ -27,6 +27,7 @@ package jdk.internal.event;
 /**
  * Event recording that a virtual thread has terminated.
  */
+@SuppressWarnings(value = "missing-explicit-ctor")
 public class VirtualThreadEndEvent extends Event {
     private final static VirtualThreadEndEvent EVENT = new VirtualThreadEndEvent();
 

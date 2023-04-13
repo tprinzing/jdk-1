@@ -30,6 +30,7 @@ package jdk.internal.event;
  * Event recording details of X.509 Certificate.
  */
 
+@SuppressWarnings(value = "missing-explicit-ctor")
 public final class X509CertificateEvent extends Event {
     private static final X509CertificateEvent EVENT = new X509CertificateEvent();
 

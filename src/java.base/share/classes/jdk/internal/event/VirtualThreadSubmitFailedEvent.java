@@ -27,6 +27,7 @@ package jdk.internal.event;
 /**
  * Event recording when an attempt to submit the task for a virtual thread failed.
  */
+@SuppressWarnings(value = "missing-explicit-ctor")
 public class VirtualThreadSubmitFailedEvent extends Event {
     public long javaThreadId;
     public String exceptionMessage;

@@ -29,6 +29,7 @@ package jdk.internal.event;
  * Event recording details of successful TLS handshakes.
  */
 
+@SuppressWarnings(value = "missing-explicit-ctor")
 public final class TLSHandshakeEvent extends Event {
     public String peerHost;
     public int peerPort;

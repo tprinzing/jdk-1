@@ -29,6 +29,7 @@ package jdk.internal.event;
  * Event recording details of Provider.getService(String type, String algorithm) calls
  */
 
+@SuppressWarnings(value = "missing-explicit-ctor")
 public final class SecurityProviderServiceEvent extends Event {
     private final static SecurityProviderServiceEvent EVENT = new SecurityProviderServiceEvent();
 

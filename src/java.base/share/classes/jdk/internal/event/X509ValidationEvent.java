@@ -30,6 +30,7 @@ package jdk.internal.event;
  * used in X509 cert path validation.
  */
 
+@SuppressWarnings(value = "missing-explicit-ctor")
 public final class X509ValidationEvent extends Event {
     public long certificateId;
     public int certificatePosition;

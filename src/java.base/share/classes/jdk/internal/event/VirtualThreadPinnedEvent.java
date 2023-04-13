@@ -27,5 +27,6 @@ package jdk.internal.event;
 /**
  * Event recording that a virtual thread has parked on its carrier thread.
  */
+@SuppressWarnings(value = "missing-explicit-ctor")
 public class VirtualThreadPinnedEvent extends Event {
 }

@@ -29,6 +29,7 @@ package jdk.internal.event;
  * Event recording thread sleeping.
  */
 
+@SuppressWarnings(value = "missing-explicit-ctor")
 public final class ThreadSleepEvent extends Event {
     private static final ThreadSleepEvent EVENT = new ThreadSleepEvent();
 

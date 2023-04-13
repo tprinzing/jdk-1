@@ -40,6 +40,7 @@ import java.util.stream.LongStream;
  * A helper class to have events logged to a JDK Event Logger.
  */
 
+@SuppressWarnings(value = "missing-explicit-ctor")
 public final class EventHelper {
 
     private static final JavaUtilJarAccess JUJA = SharedSecrets.javaUtilJarAccess();

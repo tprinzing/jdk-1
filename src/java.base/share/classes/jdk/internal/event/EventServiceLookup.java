@@ -8,6 +8,7 @@ import jdk.internal.misc.VM;
  * Provides the {@link EventService} to use for event logging in {@code java.base}.
  *
  */
+@SuppressWarnings(value = "missing-explicit-ctor")
 public class EventServiceLookup {
 
     private static EventService locateService() {

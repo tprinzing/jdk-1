@@ -27,6 +27,7 @@ package jdk.internal.event;
 /**
  * Event recording that a virtual thread has been started.
  */
+@SuppressWarnings(value = "missing-explicit-ctor")
 public class VirtualThreadStartEvent extends Event {
     private final static VirtualThreadStartEvent EVENT = new VirtualThreadStartEvent();
 

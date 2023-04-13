@@ -29,6 +29,7 @@ package jdk.internal.event;
  * Event for the start of an OS procsss
  */
 
+@SuppressWarnings(value = "missing-explicit-ctor")
 public final class ProcessStartEvent extends Event {
     public long pid;
     public String directory;

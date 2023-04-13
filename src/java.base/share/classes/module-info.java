@@ -172,8 +172,10 @@ module java.base {
         jdk.crypto.cryptoki;
     exports jdk.internal.foreign to
         jdk.incubator.vector;
-    exports jdk.internal.event to
-        jdk.jfr;
+    // ----HACK FOR PERFORMANCE TESTING ----
+    exports jdk.internal.event;
+    //exports jdk.internal.event to
+    //    jdk.jfr;
     exports jdk.internal.io to
         jdk.internal.le,
         jdk.jshell;
