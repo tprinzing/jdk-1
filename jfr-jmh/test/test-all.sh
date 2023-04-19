@@ -8,5 +8,6 @@ export JAVA_HOME=$BUILD/linux-x86_64-server-release/jdk
 export PATH=$JAVA_HOME/bin:$PATH
 mvn clean install
 
-#$JAVA_HOME/bin/java -jar target/benchmarks.jar -wi 10 -w 10s -i 20 -r 60s
-$JAVA_HOME/bin/java -jar target/benchmarks.jar 
+$JAVA_HOME/bin/java -jar target/benchmarks.jar -wi 10 -w 3s -i 10 -r 5s
+#$JAVA_HOME/bin/java -jar target/benchmarks.jar -wi 10 -w 3s -i 10 -r 5s -prof gc 
+#$JAVA_HOME/bin/java -jar target/benchmarks.jar 

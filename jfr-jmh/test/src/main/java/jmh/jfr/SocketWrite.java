@@ -47,9 +47,6 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Thread)
 public class SocketWrite {
 
-    static final int WARMUP_ITERATIONS = 5;
-    static final int MEASURE_ITERATIONS = 5;
-
     public static void main(String[] args) throws Exception {
         Options opt = new OptionsBuilder()
             .include(SocketWrite.class.getSimpleName())
@@ -59,7 +56,6 @@ public class SocketWrite {
             .build();
 
         new Runner(opt).run();
-        //org.openjdk.jmh.Main.main(args);
     }
 
     @Fork(value = 1, jvmArgsAppend = {"-server", "-XX:+UseParallelGC"})
