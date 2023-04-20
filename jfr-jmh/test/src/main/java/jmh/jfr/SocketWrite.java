@@ -79,7 +79,7 @@ public class SocketWrite {
         fixture.out.flush();
     }
 
-    @Fork(value = 1, jvmArgsAppend = {"-server", "-XX:+UseParallelGC", "-XX:StartFlightRecording:jdk.SocketWrite#enabled=true,jdk.SocketWrite#threshold=0ms"})
+    @Fork(value = 1, jvmArgsAppend = {"-server", "-XX:+UseParallelGC", "-XX:StartFlightRecording:jdk.SocketWrite#enabled=true,jdk.SocketWrite#threshold=0ms,disk=false"})
     @Benchmark
     public void testSocketJFREnabledEventEmitted(SocketFixture fixture) throws IOException {
         fixture.out.write(fixture.writeBuf);

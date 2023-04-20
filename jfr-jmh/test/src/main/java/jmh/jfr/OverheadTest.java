@@ -54,7 +54,7 @@ public class OverheadTest {
         fixture.write(writeBuf, 0, writeBuf.length);
     }
 
-    @Fork(value = 1, jvmArgsAppend = {"-server", "-XX:+UseParallelGC", "-XX:StartFlightRecording:jdk.SocketWrite#enabled=true,jdk.SocketWrite#threshold=0ms"})
+    @Fork(value = 1, jvmArgsAppend = {"-server", "-XX:+UseParallelGC", "-XX:StartFlightRecording:jdk.SocketWrite#enabled=true,jdk.SocketWrite#threshold=0ms,disk=false"})
     @Benchmark
     public void testJFREnabledEventEmitted(JFREnabledEventEmitted fixture) throws IOException {
         fixture.write(writeBuf, 0, writeBuf.length);
