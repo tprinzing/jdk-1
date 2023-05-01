@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,17 @@ package jdk.internal.foreign.abi;
 
 import jdk.internal.foreign.AbstractMemorySegmentImpl;
 import jdk.internal.foreign.MemorySessionImpl;
-import jdk.internal.foreign.NativeMemorySegmentImpl;
 import jdk.internal.foreign.Utils;
-import jdk.internal.misc.VM;
+import jdk.internal.foreign.abi.Binding.Allocate;
+import jdk.internal.foreign.abi.Binding.BoxAddress;
+import jdk.internal.foreign.abi.Binding.BufferLoad;
+import jdk.internal.foreign.abi.Binding.BufferStore;
+import jdk.internal.foreign.abi.Binding.Cast;
+import jdk.internal.foreign.abi.Binding.Copy;
+import jdk.internal.foreign.abi.Binding.Dup;
+import jdk.internal.foreign.abi.Binding.UnboxAddress;
+import jdk.internal.foreign.abi.Binding.VMLoad;
+import jdk.internal.foreign.abi.Binding.VMStore;
 import jdk.internal.org.objectweb.asm.ClassReader;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.ConstantDynamic;
@@ -44,15 +52,11 @@ import sun.security.action.GetPropertyAction;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.constant.ConstantDescs;
-import java.lang.foreign.FunctionDescriptor;
-import java.lang.foreign.MemoryLayout;
-import java.lang.foreign.MemorySegment;
-import java.lang.foreign.SegmentScope;
-import java.lang.foreign.SegmentAllocator;
-import java.lang.foreign.ValueLayout;
+import java.lang.foreign.*;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.ClassFileFormatVersion;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -71,30 +75,32 @@ public class BindingSpecializer {
         = GetBooleanAction.privilegedGetProperty("jdk.internal.foreign.abi.Specializer.PERFORM_VERIFICATION");
 
     // Bunch of helper constants
-    private static final int CLASSFILE_VERSION = VM.classFileVersion();
+    private static final int CLASSFILE_VERSION = ClassFileFormatVersion.latest().major();
 
     private static final String OBJECT_DESC = Object.class.descriptorString();
     private static final String OBJECT_INTRN = Type.getInternalName(Object.class);
 
     private static final String VOID_DESC = methodType(void.class).descriptorString();
 
-    private static final String BINDING_CONTEXT_DESC = Binding.Context.class.descriptorString();
-    private static final String OF_BOUNDED_ALLOCATOR_DESC = methodType(Binding.Context.class, long.class).descriptorString();
-    private static final String OF_SCOPE_DESC = methodType(Binding.Context.class).descriptorString();
-    private static final String ALLOCATOR_DESC = methodType(SegmentAllocator.class).descriptorString();
-    private static final String SCOPE_DESC = methodType(SegmentScope.class).descriptorString();
+    private static final String ARENA_DESC = Arena.class.descriptorString();
+    private static final String NEW_BOUNDED_ARENA_DESC = methodType(Arena.class, long.class).descriptorString();
+    private static final String NEW_EMPTY_ARENA_DESC = methodType(Arena.class).descriptorString();
+    private static final String SCOPE_DESC = methodType(MemorySegment.Scope.class).descriptorString();
     private static final String SESSION_IMPL_DESC = methodType(MemorySessionImpl.class).descriptorString();
     private static final String CLOSE_DESC = VOID_DESC;
     private static final String UNBOX_SEGMENT_DESC = methodType(long.class, MemorySegment.class).descriptorString();
     private static final String COPY_DESC = methodType(void.class, MemorySegment.class, long.class, MemorySegment.class, long.class, long.class).descriptorString();
-    private static final String OF_LONG_DESC = methodType(MemorySegment.class, long.class, long.class).descriptorString();
-    private static final String OF_LONG_UNCHECKED_DESC = methodType(MemorySegment.class, long.class, long.class, SegmentScope.class).descriptorString();
+    private static final String LONG_TO_ADDRESS_NO_SCOPE_DESC = methodType(MemorySegment.class, long.class, long.class, long.class).descriptorString();
+    private static final String LONG_TO_ADDRESS_SCOPE_DESC = methodType(MemorySegment.class, long.class, long.class, long.class, MemorySessionImpl.class).descriptorString();
     private static final String ALLOCATE_DESC = methodType(MemorySegment.class, long.class, long.class).descriptorString();
     private static final String HANDLE_UNCAUGHT_EXCEPTION_DESC = methodType(void.class, Throwable.class).descriptorString();
     private static final String METHOD_HANDLES_INTRN = Type.getInternalName(MethodHandles.class);
     private static final String CLASS_DATA_DESC = methodType(Object.class, MethodHandles.Lookup.class, String.class, Class.class).descriptorString();
     private static final String RELEASE0_DESC = VOID_DESC;
     private static final String ACQUIRE0_DESC = VOID_DESC;
+    private static final String INTEGER_TO_UNSIGNED_LONG_DESC = MethodType.methodType(long.class, int.class).descriptorString();
+    private static final String SHORT_TO_UNSIGNED_LONG_DESC = MethodType.methodType(long.class, short.class).descriptorString();
+    private static final String BYTE_TO_UNSIGNED_LONG_DESC = MethodType.methodType(long.class, byte.class).descriptorString();
 
     private static final Handle BSM_CLASS_DATA = new Handle(
             H_INVOKESTATIC,
@@ -112,8 +118,6 @@ public class BindingSpecializer {
     private static final String METHOD_NAME = "invoke";
 
     private static final String SUPER_NAME = OBJECT_INTRN;
-
-    private static final SoftReferenceCache<FunctionDescriptor, MethodHandle> UPCALL_WRAPPER_CACHE = new SoftReferenceCache<>();
 
     // Instance fields start here
     private final MethodVisitor mv;
@@ -144,16 +148,7 @@ public class BindingSpecializer {
         this.leafType = leafType;
     }
 
-    static MethodHandle specialize(MethodHandle leafHandle, CallingSequence callingSequence, ABIDescriptor abi) {
-        if (callingSequence.forUpcall()) {
-            MethodHandle wrapper = UPCALL_WRAPPER_CACHE.get(callingSequence.functionDesc(), fd -> specializeUpcall(leafHandle, callingSequence, abi));
-            return MethodHandles.insertArguments(wrapper, 0, leafHandle); // lazily customized for leaf handle instances
-        } else {
-            return specializeDowncall(leafHandle, callingSequence, abi);
-        }
-    }
-
-    private static MethodHandle specializeDowncall(MethodHandle leafHandle, CallingSequence callingSequence, ABIDescriptor abi) {
+    static MethodHandle specializeDowncall(MethodHandle leafHandle, CallingSequence callingSequence, ABIDescriptor abi) {
         MethodType callerMethodType = callingSequence.callerMethodType();
         if (callingSequence.needsReturnBuffer()) {
             callerMethodType = callerMethodType.dropParameterTypes(0, 1); // Return buffer does not appear in the parameter list
@@ -163,18 +158,19 @@ public class BindingSpecializer {
         byte[] bytes = specializeHelper(leafHandle.type(), callerMethodType, callingSequence, abi);
 
         try {
-            MethodHandles.Lookup definedClassLookup = MethodHandles.lookup().defineHiddenClassWithClassData(bytes, leafHandle, false);
+            MethodHandles.Lookup definedClassLookup = MethodHandles.lookup()
+                    .defineHiddenClassWithClassData(bytes, leafHandle, false);
             return definedClassLookup.findStatic(definedClassLookup.lookupClass(), METHOD_NAME, callerMethodType);
         } catch (IllegalAccessException | NoSuchMethodException e) {
             throw new InternalError("Should not happen", e);
         }
     }
 
-    private static MethodHandle specializeUpcall(MethodHandle leafHandle, CallingSequence callingSequence, ABIDescriptor abi) {
+    static MethodHandle specializeUpcall(MethodType targetType, CallingSequence callingSequence, ABIDescriptor abi) {
         MethodType callerMethodType = callingSequence.callerMethodType();
         callerMethodType = callerMethodType.insertParameterTypes(0, MethodHandle.class); // target
 
-        byte[] bytes = specializeHelper(leafHandle.type(), callerMethodType, callingSequence, abi);
+        byte[] bytes = specializeHelper(targetType, callerMethodType, callingSequence, abi);
 
         try {
             // For upcalls, we must initialize the class since the upcall stubs don't have a clinit barrier,
@@ -292,11 +288,11 @@ public class BindingSpecializer {
         // create a Binding.Context for this call
         if (callingSequence.allocationSize() != 0) {
             emitConst(callingSequence.allocationSize());
-            emitInvokeStatic(Binding.Context.class, "ofBoundedAllocator", OF_BOUNDED_ALLOCATOR_DESC);
+            emitInvokeStatic(SharedUtils.class, "newBoundedArena", NEW_BOUNDED_ARENA_DESC);
         } else if (callingSequence.forUpcall() && needsSession()) {
-            emitInvokeStatic(Binding.Context.class, "ofScope", OF_SCOPE_DESC);
+            emitInvokeStatic(SharedUtils.class, "newEmptyArena", NEW_EMPTY_ARENA_DESC);
         } else {
-            emitGetStatic(Binding.Context.class, "DUMMY", BINDING_CONTEXT_DESC);
+            emitGetStatic(SharedUtils.class, "DUMMY_ARENA", ARENA_DESC);
         }
         contextIdx = newLocal(Object.class);
         emitStore(Object.class, contextIdx);
@@ -420,13 +416,13 @@ public class BindingSpecializer {
         if (callingSequence.forDowncall()) {
             mv.visitInsn(ATHROW);
         } else {
-           emitInvokeStatic(SharedUtils.class, "handleUncaughtException", HANDLE_UNCAUGHT_EXCEPTION_DESC);
-           if (callerMethodType.returnType() != void.class) {
-               emitConstZero(callerMethodType.returnType());
-               emitReturn(callerMethodType.returnType());
-           } else {
-               mv.visitInsn(RETURN);
-           }
+            emitInvokeStatic(SharedUtils.class, "handleUncaughtException", HANDLE_UNCAUGHT_EXCEPTION_DESC);
+            if (callerMethodType.returnType() != void.class) {
+                emitConstZero(callerMethodType.returnType());
+                emitReturn(callerMethodType.returnType());
+            } else {
+                mv.visitInsn(RETURN);
+            }
         }
 
         mv.visitTryCatchBlock(tryStart, tryEnd, catchStart, null);
@@ -434,9 +430,9 @@ public class BindingSpecializer {
 
     private boolean needsSession() {
         return callingSequence.argumentBindings()
-                .filter(Binding.BoxAddress.class::isInstance)
-                .map(Binding.BoxAddress.class::cast)
-                .anyMatch(Binding.BoxAddress::needsScope);
+                .filter(BoxAddress.class::isInstance)
+                .map(BoxAddress.class::cast)
+                .anyMatch(BoxAddress::needsScope);
     }
 
     private boolean shouldAcquire(int paramIndex) {
@@ -452,7 +448,7 @@ public class BindingSpecializer {
                                               .get(paramIndex - offset);
 
         // is this an address layout?
-        return paramLayout instanceof ValueLayout.OfAddress;
+        return paramLayout instanceof AddressLayout;
     }
 
     private void emitCleanup() {
@@ -464,17 +460,17 @@ public class BindingSpecializer {
 
     private void doBindings(List<Binding> bindings) {
         for (Binding binding : bindings) {
-            switch (binding.tag()) {
-                case VM_STORE -> emitVMStore((Binding.VMStore) binding);
-                case VM_LOAD -> emitVMLoad((Binding.VMLoad) binding);
-                case BUFFER_STORE -> emitBufferStore((Binding.BufferStore) binding);
-                case BUFFER_LOAD -> emitBufferLoad((Binding.BufferLoad) binding);
-                case COPY_BUFFER -> emitCopyBuffer((Binding.Copy) binding);
-                case ALLOC_BUFFER -> emitAllocBuffer((Binding.Allocate) binding);
-                case BOX_ADDRESS -> emitBoxAddress((Binding.BoxAddress) binding);
-                case UNBOX_ADDRESS -> emitUnboxAddress();
-                case DUP -> emitDupBinding();
-                case CAST -> emitCast((Binding.Cast) binding);
+            switch (binding) {
+                case VMStore vmStore         -> emitVMStore(vmStore);
+                case VMLoad vmLoad           -> emitVMLoad(vmLoad);
+                case BufferStore bufferStore -> emitBufferStore(bufferStore);
+                case BufferLoad bufferLoad   -> emitBufferLoad(bufferLoad);
+                case Copy copy               -> emitCopyBuffer(copy);
+                case Allocate allocate       -> emitAllocBuffer(allocate);
+                case BoxAddress boxAddress   -> emitBoxAddress(boxAddress);
+                case UnboxAddress unused     -> emitUnboxAddress();
+                case Dup unused              -> emitDupBinding();
+                case Cast cast               -> emitCast(cast);
             }
         }
     }
@@ -561,34 +557,37 @@ public class BindingSpecializer {
     private void emitLoadInternalSession() {
         assert contextIdx != -1;
         emitLoad(Object.class, contextIdx);
-        emitInvokeVirtual(Binding.Context.class, "scope", SCOPE_DESC);
+        emitCheckCast(Arena.class);
+        emitInvokeInterface(Arena.class, "scope", SCOPE_DESC);
+        emitCheckCast(MemorySessionImpl.class);
     }
 
     private void emitLoadInternalAllocator() {
         assert contextIdx != -1;
         emitLoad(Object.class, contextIdx);
-        emitInvokeVirtual(Binding.Context.class, "allocator", ALLOCATOR_DESC);
     }
 
     private void emitCloseContext() {
         assert contextIdx != -1;
         emitLoad(Object.class, contextIdx);
-        emitInvokeVirtual(Binding.Context.class, "close", CLOSE_DESC);
+        emitCheckCast(Arena.class);
+        emitInvokeInterface(Arena.class, "close", CLOSE_DESC);
     }
 
-    private void emitBoxAddress(Binding.BoxAddress boxAddress) {
+    private void emitBoxAddress(BoxAddress boxAddress) {
         popType(long.class);
         emitConst(boxAddress.size());
+        emitConst(boxAddress.align());
         if (needsSession()) {
             emitLoadInternalSession();
-            emitInvokeStatic(NativeMemorySegmentImpl.class, "makeNativeSegmentUnchecked", OF_LONG_UNCHECKED_DESC);
+            emitInvokeStatic(Utils.class, "longToAddress", LONG_TO_ADDRESS_SCOPE_DESC);
         } else {
-            emitInvokeStatic(NativeMemorySegmentImpl.class, "makeNativeSegmentUnchecked", OF_LONG_DESC);
+            emitInvokeStatic(Utils.class, "longToAddress", LONG_TO_ADDRESS_NO_SCOPE_DESC);
         }
         pushType(MemorySegment.class);
     }
 
-    private void emitAllocBuffer(Binding.Allocate binding) {
+    private void emitAllocBuffer(Allocate binding) {
         if (callingSequence.forDowncall()) {
             assert returnAllocatorIdx != -1;
             emitLoad(Object.class, returnAllocatorIdx);
@@ -599,24 +598,89 @@ public class BindingSpecializer {
         pushType(MemorySegment.class);
     }
 
-    private void emitBufferStore(Binding.BufferStore bufferStore) {
+    private void emitBufferStore(BufferStore bufferStore) {
         Class<?> storeType = bufferStore.type();
         long offset = bufferStore.offset();
+        int byteWidth = bufferStore.byteWidth();
 
         popType(storeType);
         popType(MemorySegment.class);
-        int valueIdx = newLocal(storeType);
-        emitStore(storeType, valueIdx);
 
-        Class<?> valueLayoutType = emitLoadLayoutConstant(storeType);
-        emitConst(offset);
-        emitLoad(storeType, valueIdx);
-        String descriptor = methodType(void.class, valueLayoutType, long.class, storeType).descriptorString();
-        emitInvokeInterface(MemorySegment.class, "set", descriptor);
+        if (SharedUtils.isPowerOfTwo(byteWidth)) {
+            int valueIdx = newLocal(storeType);
+            emitStore(storeType, valueIdx);
+
+            Class<?> valueLayoutType = emitLoadLayoutConstant(storeType);
+            emitConst(offset);
+            emitLoad(storeType, valueIdx);
+            String descriptor = methodType(void.class, valueLayoutType, long.class, storeType).descriptorString();
+            emitInvokeInterface(MemorySegment.class, "set", descriptor);
+        } else {
+            // long longValue = ((Number) value).longValue();
+            if (storeType == int.class) {
+                mv.visitInsn(I2L);
+            } else {
+                assert storeType == long.class; // chunking only for int and long
+            }
+            int longValueIdx = newLocal(long.class);
+            emitStore(long.class, longValueIdx);
+            int writeAddrIdx = newLocal(MemorySegment.class);
+            emitStore(MemorySegment.class, writeAddrIdx);
+
+            int remaining = byteWidth;
+            int chunkOffset = 0;
+            do {
+                int chunkSize = Integer.highestOneBit(remaining); // next power of 2, in bytes
+                Class<?> chunkStoreType;
+                long mask;
+                switch (chunkSize) {
+                    case Integer.BYTES -> {
+                        chunkStoreType = int.class;
+                        mask = 0xFFFF_FFFFL;
+                    }
+                    case Short.BYTES -> {
+                        chunkStoreType = short.class;
+                        mask = 0xFFFFL;
+                    }
+                    case Byte.BYTES -> {
+                        chunkStoreType = byte.class;
+                        mask = 0xFFL;
+                    }
+                    default ->
+                       throw new IllegalStateException("Unexpected chunk size for chunked write: " + chunkSize);
+                }
+                //int writeChunk = (int) (((0xFFFF_FFFFL << shiftAmount) & longValue) >>> shiftAmount);
+                int shiftAmount = chunkOffset * Byte.SIZE;
+                mask = mask << shiftAmount;
+                emitLoad(long.class, longValueIdx);
+                emitConst(mask);
+                mv.visitInsn(LAND);
+                if (shiftAmount != 0) {
+                    emitConst(shiftAmount);
+                    mv.visitInsn(LUSHR);
+                }
+                mv.visitInsn(L2I);
+                int chunkIdx = newLocal(chunkStoreType);
+                emitStore(chunkStoreType, chunkIdx);
+                // chunk done, now write it
+
+                //writeAddress.set(JAVA_SHORT_UNALIGNED, offset, writeChunk);
+                emitLoad(MemorySegment.class, writeAddrIdx);
+                Class<?> valueLayoutType = emitLoadLayoutConstant(chunkStoreType);
+                long writeOffset = offset + SharedUtils.pickChunkOffset(chunkOffset, byteWidth, chunkSize);
+                emitConst(writeOffset);
+                emitLoad(chunkStoreType, chunkIdx);
+                String descriptor = methodType(void.class, valueLayoutType, long.class, chunkStoreType).descriptorString();
+                emitInvokeInterface(MemorySegment.class, "set", descriptor);
+
+                remaining -= chunkSize;
+                chunkOffset += chunkSize;
+            } while (remaining != 0);
+        }
     }
 
     // VM_STORE and VM_LOAD are emulated, which is different for down/upcalls
-    private void emitVMStore(Binding.VMStore vmStore) {
+    private void emitVMStore(VMStore vmStore) {
         Class<?> storeType = vmStore.type();
         popType(storeType);
 
@@ -643,7 +707,7 @@ public class BindingSpecializer {
         }
     }
 
-    private void emitVMLoad(Binding.VMLoad vmLoad) {
+    private void emitVMLoad(VMLoad vmLoad) {
         Class<?> loadType = vmLoad.type();
 
         if (callingSequence.forDowncall()) {
@@ -672,7 +736,7 @@ public class BindingSpecializer {
         pushType(dupType);
     }
 
-    private void emitCast(Binding.Cast cast) {
+    private void emitCast(Cast cast) {
         Class<?> fromType = cast.fromType();
         Class<?> toType = cast.toType();
 
@@ -705,20 +769,89 @@ public class BindingSpecializer {
         pushType(long.class);
     }
 
-    private void emitBufferLoad(Binding.BufferLoad bufferLoad) {
+    private void emitBufferLoad(BufferLoad bufferLoad) {
         Class<?> loadType = bufferLoad.type();
         long offset = bufferLoad.offset();
+        int byteWidth = bufferLoad.byteWidth();
 
         popType(MemorySegment.class);
 
-        Class<?> valueLayoutType = emitLoadLayoutConstant(loadType);
-        emitConst(offset);
-        String descriptor = methodType(loadType, valueLayoutType, long.class).descriptorString();
-        emitInvokeInterface(MemorySegment.class, "get", descriptor);
+        if (SharedUtils.isPowerOfTwo(byteWidth)) {
+            Class<?> valueLayoutType = emitLoadLayoutConstant(loadType);
+            emitConst(offset);
+            String descriptor = methodType(loadType, valueLayoutType, long.class).descriptorString();
+            emitInvokeInterface(MemorySegment.class, "get", descriptor);
+        } else {
+            // chunked
+            int readAddrIdx = newLocal(MemorySegment.class);
+            emitStore(MemorySegment.class, readAddrIdx);
+
+            emitConstZero(long.class); // result
+            int resultIdx = newLocal(long.class);
+            emitStore(long.class, resultIdx);
+
+            int remaining = byteWidth;
+            int chunkOffset = 0;
+            do {
+                int chunkSize = Integer.highestOneBit(remaining); // next power of 2
+                Class<?> chunkType;
+                Class<?> toULongHolder;
+                String toULongDescriptor;
+                switch (chunkSize) {
+                    case Integer.BYTES -> {
+                        chunkType = int.class;
+                        toULongHolder = Integer.class;
+                        toULongDescriptor = INTEGER_TO_UNSIGNED_LONG_DESC;
+                    }
+                    case Short.BYTES -> {
+                        chunkType = short.class;
+                        toULongHolder = Short.class;
+                        toULongDescriptor = SHORT_TO_UNSIGNED_LONG_DESC;
+                    }
+                    case Byte.BYTES -> {
+                        chunkType = byte.class;
+                        toULongHolder = Byte.class;
+                        toULongDescriptor = BYTE_TO_UNSIGNED_LONG_DESC;
+                    }
+                    default ->
+                        throw new IllegalStateException("Unexpected chunk size for chunked write: " + chunkSize);
+                }
+                // read from segment
+                emitLoad(MemorySegment.class, readAddrIdx);
+                Class<?> valueLayoutType = emitLoadLayoutConstant(chunkType);
+                String descriptor = methodType(chunkType, valueLayoutType, long.class).descriptorString();
+                long readOffset = offset + SharedUtils.pickChunkOffset(chunkOffset, byteWidth, chunkSize);
+                emitConst(readOffset);
+                emitInvokeInterface(MemorySegment.class, "get", descriptor);
+                emitInvokeStatic(toULongHolder, "toUnsignedLong", toULongDescriptor);
+
+                // shift to right offset
+                int shiftAmount = chunkOffset * Byte.SIZE;
+                if (shiftAmount != 0) {
+                    emitConst(shiftAmount);
+                    mv.visitInsn(LSHL);
+                }
+                // add to result
+                emitLoad(long.class, resultIdx);
+                mv.visitInsn(LOR);
+                emitStore(long.class, resultIdx);
+
+                remaining -= chunkSize;
+                chunkOffset += chunkSize;
+            } while (remaining != 0);
+
+            emitLoad(long.class, resultIdx);
+            if (loadType == int.class) {
+                mv.visitInsn(L2I);
+            } else {
+                assert loadType == long.class; // should not have chunking for other types
+            }
+        }
+
         pushType(loadType);
     }
 
-    private void emitCopyBuffer(Binding.Copy copy) {
+    private void emitCopyBuffer(Copy copy) {
         long size = copy.size();
         long alignment = copy.alignment();
 
@@ -798,7 +931,7 @@ public class BindingSpecializer {
         } else if (type == double.class) {
             return ValueLayout.OfDouble.class;
         } else if (type == MemorySegment.class) {
-            return ValueLayout.OfAddress.class;
+            return AddressLayout.class;
         } else {
             throw new IllegalStateException("Unknown type: " + type);
         }
