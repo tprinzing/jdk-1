@@ -31,6 +31,7 @@ import jdk.jfr.Label;
 import jdk.jfr.DataAmount;
 import jdk.jfr.Name;
 import jdk.jfr.internal.Type;
+import jdk.jfr.internal.event.EventConfiguration;
 
 @Name(Type.EVENT_NAME_PREFIX + "SocketWrite")
 @Label("Socket Write")
@@ -58,4 +59,18 @@ public final class SocketWriteEvent extends AbstractJDKEvent {
     public static void commit(long start, long duration, String host, String address, int port, long bytes) {
         // Generated
     }
+
+    public static boolean shouldComment(long duration) {
+        return (EventConfigurations.SOCKET_WRITE != null) ? EventConfigurations.SOCKET_WRITE.shouldCommit(duration) : false;
+    }
+
+    public static boolean enabled() {
+        return (EventConfigurations.SOCKET_WRITE != null) ? EventConfigurations.SOCKET_WRITE.isEnabled() : false;
+    }
+
+    public static long timestamp() {
+        return EventConfiguration.timestamp();
+    }
+
+
 }

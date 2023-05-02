@@ -100,6 +100,7 @@ public final class JDKEvents {
         jdk.internal.event.ProcessStartEvent.class,
         jdk.internal.event.SecurityPropertyModificationEvent.class,
         jdk.internal.event.SecurityProviderServiceEvent.class,
+        jdk.internal.event.SocketWriteEvent.class,
         jdk.internal.event.ThreadSleepEvent.class,
         jdk.internal.event.TLSHandshakeEvent.class,
         jdk.internal.event.VirtualThreadStartEvent.class,
@@ -120,7 +121,7 @@ public final class JDKEvents {
         RandomAccessFileInstrumentor.class,
         FileChannelImplInstrumentor.class,
         SocketInputStreamInstrumentor.class,
-        SocketOutputStreamInstrumentor.class,
+        //SocketOutputStreamInstrumentor.class,
         SocketChannelImplInstrumentor.class
     };
 

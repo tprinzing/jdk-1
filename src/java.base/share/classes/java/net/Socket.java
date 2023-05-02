@@ -39,6 +39,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.Collections;
 
+import jdk.internal.event.SocketWriteEvent;
+
 /**
  * This class implements client sockets (also called just
  * "sockets"). A socket is an endpoint for communication
@@ -1191,6 +1193,34 @@ public class Socket implements java.io.Closeable {
         }
         @Override
         public void write(byte[] b, int off, int len) throws IOException {
+            {
+                if (!SocketWriteEvent.enabled()) {
+                    writeMeasured(b, off, len);
+                    return;
+                }
+                int bytesWritten = 0;
+                long start = 0;
+                try {
+                    start = SocketWriteEvent.timestamp();
+                    writeMeasured(b, off, len);
+                    bytesWritten = len;
+                } finally {
+                    long duration = SocketWriteEvent.timestamp() - start;
+                    if (SocketWriteEvent.shouldCommit(duration)) {
+                        InetAddress remote = parent.getInetAddress();
+                        SocketWriteEvent.commit(
+                            start,
+                            duration,
+                            remote.getHostName(),
+                            remote.getHostAddress(),
+                            parent.getPort(),
+                            bytesWritten);
+                    }
+                }
+            }
+        }
+
+        public void writeMeasured(byte[] b, int off, int len) throws IOException {
             try {
                 out.write(b, off, len);
             } catch (InterruptedIOException e) {
