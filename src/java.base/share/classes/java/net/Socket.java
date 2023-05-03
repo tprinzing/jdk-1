@@ -25,6 +25,7 @@
 
 package java.net;
 
+import jdk.internal.event.SocketReadEvent;
 import sun.security.util.SecurityConstants;
 
 import java.io.InputStream;
@@ -1097,6 +1098,24 @@ public class Socket implements java.io.Closeable {
         }
         @Override
         public int read(byte[] b, int off, int len) throws IOException {
+            if (! SocketReadEvent.enabled()) {
+                return readMeasured(b, off, len);
+            }
+            Throwable thrown = null;
+            int nbytes = 0;
+            long start = SocketReadEvent.timestamp();
+            try {
+                nbytes = readMeasured(b, off, len);
+            } catch (Throwable t) {
+                thrown = t;
+                throw t;
+            } finally {
+                SocketReadEvent.checkForCommit(start, nbytes, parent.getRemoteSocketAddress(), parent.getSoTimeout(), thrown);
+            }
+            return nbytes;
+        }
+
+        private int readMeasured(byte[] b, int off, int len) throws IOException {
             try {
                 return in.read(b, off, len);
             } catch (SocketTimeoutException e) {
@@ -1193,29 +1212,27 @@ public class Socket implements java.io.Closeable {
         }
         @Override
         public void write(byte[] b, int off, int len) throws IOException {
-            {
-                if (!SocketWriteEvent.enabled()) {
-                    writeMeasured(b, off, len);
-                    return;
-                }
-                int bytesWritten = 0;
-                long start = 0;
-                try {
-                    start = SocketWriteEvent.timestamp();
-                    writeMeasured(b, off, len);
-                    bytesWritten = len;
-                } finally {
-                    long duration = SocketWriteEvent.timestamp() - start;
-                    if (SocketWriteEvent.shouldCommit(duration)) {
-                        InetAddress remote = parent.getInetAddress();
-                        SocketWriteEvent.commit(
-                            start,
-                            duration,
-                            remote.getHostName(),
-                            remote.getHostAddress(),
-                            parent.getPort(),
-                            bytesWritten);
-                    }
+            if (!SocketWriteEvent.enabled()) {
+                writeMeasured(b, off, len);
+                return;
+            }
+            int bytesWritten = 0;
+            long start = 0;
+            try {
+                start = SocketWriteEvent.timestamp();
+                writeMeasured(b, off, len);
+                bytesWritten = len;
+            } finally {
+                long duration = SocketWriteEvent.timestamp() - start;
+                if (SocketWriteEvent.shouldCommit(duration)) {
+                    InetAddress remote = parent.getInetAddress();
+                    SocketWriteEvent.commit(
+                        start,
+                        duration,
+                        remote.getHostName(),
+                        remote.getHostAddress(),
+                        parent.getPort(),
+                        bytesWritten);
                 }
             }
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,12 +31,15 @@ import jdk.jfr.Label;
 import jdk.jfr.DataAmount;
 import jdk.jfr.Name;
 import jdk.jfr.Timespan;
+import jdk.jfr.internal.MirrorEvent;
 import jdk.jfr.internal.Type;
+import jdk.jfr.internal.event.EventConfiguration;
 
 @Name(Type.EVENT_NAME_PREFIX + "SocketRead")
 @Label("Socket Read")
 @Category("Java Application")
 @Description("Reading data from a socket")
+@MirrorEvent(className = "jdk.internal.event.SocketReadEvent")
 public final class SocketReadEvent extends AbstractJDKEvent {
 
     // The order of these fields must be the same as the parameters in
@@ -67,4 +70,17 @@ public final class SocketReadEvent extends AbstractJDKEvent {
     public static void commit(long start, long duration, String host, String address, int port, long timeout, long byteRead, boolean endOfStream) {
         // Generated
     }
+
+    public static boolean shouldComment(long duration) {
+        return (EventConfigurations.SOCKET_READ != null) ? EventConfigurations.SOCKET_READ.shouldCommit(duration) : false;
+    }
+
+    public static boolean enabled() {
+        return (EventConfigurations.SOCKET_READ != null) ? EventConfigurations.SOCKET_READ.isEnabled() : false;
+    }
+
+    public static long timestamp() {
+        return EventConfiguration.timestamp();
+    }
+
 }
