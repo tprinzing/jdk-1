@@ -33,7 +33,6 @@ import jdk.jfr.Name;
 import jdk.jfr.Timespan;
 import jdk.jfr.internal.MirrorEvent;
 import jdk.jfr.internal.Type;
-import jdk.jfr.internal.event.EventConfiguration;
 
 @Name(Type.EVENT_NAME_PREFIX + "SocketRead")
 @Label("Socket Read")
@@ -41,9 +40,6 @@ import jdk.jfr.internal.event.EventConfiguration;
 @Description("Reading data from a socket")
 @MirrorEvent(className = "jdk.internal.event.SocketReadEvent")
 public final class SocketReadEvent extends AbstractJDKEvent {
-
-    // The order of these fields must be the same as the parameters in
-    // commit(..., String, String, int, long, long, boolean)
 
     @Label("Remote Host")
     public String host;
@@ -66,21 +62,5 @@ public final class SocketReadEvent extends AbstractJDKEvent {
     @Label("End of Stream")
     @Description("If end of stream was reached")
     public boolean endOfStream;
-
-    public static void commit(long start, long duration, String host, String address, int port, long timeout, long byteRead, boolean endOfStream) {
-        // Generated
-    }
-
-    public static boolean shouldComment(long duration) {
-        return (EventConfigurations.SOCKET_READ != null) ? EventConfigurations.SOCKET_READ.shouldCommit(duration) : false;
-    }
-
-    public static boolean enabled() {
-        return (EventConfigurations.SOCKET_READ != null) ? EventConfigurations.SOCKET_READ.isEnabled() : false;
-    }
-
-    public static long timestamp() {
-        return EventConfiguration.timestamp();
-    }
 
 }

@@ -32,7 +32,6 @@ import jdk.jfr.DataAmount;
 import jdk.jfr.Name;
 import jdk.jfr.internal.MirrorEvent;
 import jdk.jfr.internal.Type;
-import jdk.jfr.internal.event.EventConfiguration;
 
 @Name(Type.EVENT_NAME_PREFIX + "SocketWrite")
 @Label("Socket Write")
@@ -40,9 +39,6 @@ import jdk.jfr.internal.event.EventConfiguration;
 @Description("Writing data to a socket")
 @MirrorEvent(className = "jdk.internal.event.SocketWriteEvent")
 public final class SocketWriteEvent extends AbstractJDKEvent {
-
-    // The order of these fields must be the same as the parameters in
-    // commit(..., String, String, int, long)
 
     @Label("Remote Host")
     public String host;
@@ -57,22 +53,5 @@ public final class SocketWriteEvent extends AbstractJDKEvent {
     @Description("Number of bytes written to the socket")
     @DataAmount
     public long bytesWritten;
-
-    public static void commit(long start, long duration, String host, String address, int port, long bytes) {
-        // Generated
-    }
-
-    public static boolean shouldComment(long duration) {
-        return (EventConfigurations.SOCKET_WRITE != null) ? EventConfigurations.SOCKET_WRITE.shouldCommit(duration) : false;
-    }
-
-    public static boolean enabled() {
-        return (EventConfigurations.SOCKET_WRITE != null) ? EventConfigurations.SOCKET_WRITE.isEnabled() : false;
-    }
-
-    public static long timestamp() {
-        return EventConfiguration.timestamp();
-    }
-
 
 }
