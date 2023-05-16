@@ -468,7 +468,7 @@ class SocketChannelImpl
         throws IOException
     {
         if (! SocketReadEvent.enabled()) {
-            return read(dsts, offset, length);
+            return readMeasured(dsts, offset, length);
         }
         long nbytes = 0;
         long start = SocketReadEvent.timestamp();
