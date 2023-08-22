@@ -74,6 +74,8 @@ import java.util.function.Consumer;
 
 import jdk.internal.access.JavaNioAccess;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.event.DatagramReceiveEvent;
+import jdk.internal.event.DatagramSendEvent;
 import jdk.internal.ref.CleanerFactory;
 import sun.net.ResourceManager;
 import sun.net.ext.ExtendedSocketOptions;
@@ -569,6 +571,16 @@ class DatagramChannelImpl
 
     @Override
     public SocketAddress receive(ByteBuffer dst) throws IOException {
+        if (!DatagramReceiveEvent.enabled()) {
+            return implReceive(dst);
+        }
+        long pos = dst.position();
+        long start =  DatagramReceiveEvent.timestamp();
+        SocketAddress remoteAddress = implReceive(dst);
+        DatagramReceiveEvent.filteredCommit(start, dst.position() - pos, remoteAddress);
+        return remoteAddress;
+    }
+    private SocketAddress implReceive(ByteBuffer dst) throws IOException {
         if (dst.isReadOnly())
             throw new IllegalArgumentException("Read-only buffer");
         readLock.lock();
@@ -659,6 +671,16 @@ class DatagramChannelImpl
      * @throws SocketTimeoutException if the timeout elapses
      */
     void blockingReceive(DatagramPacket p, long nanos) throws IOException {
+        if (!DatagramReceiveEvent.enabled()) {
+            implBlockingReceive(p, nanos);
+            return;
+        }
+        long start =  DatagramReceiveEvent.timestamp();;
+        implBlockingReceive(p, nanos);
+        DatagramReceiveEvent.filteredCommit(start, p.getLength(), p.getSocketAddress());
+    }
+
+    private void implBlockingReceive(DatagramPacket p, long nanos) throws IOException {
         Objects.requireNonNull(p);
         assert nanos >= 0;
 
@@ -844,6 +866,18 @@ class DatagramChannelImpl
 
     @Override
     public int send(ByteBuffer src, SocketAddress target)
+        throws IOException
+    {
+        if (!DatagramSendEvent.enabled()) {
+            return implSend(src, target);
+        }
+        long start = DatagramSendEvent.timestamp();
+        int nbytes = implSend(src, target);
+        DatagramSendEvent.filteredCommit(start, nbytes, target);
+        return nbytes;
+    }
+
+    private int implSend(ByteBuffer src, SocketAddress target)
         throws IOException
     {
         Objects.requireNonNull(src);
@@ -1035,6 +1069,16 @@ class DatagramChannelImpl
 
     @Override
     public int read(ByteBuffer buf) throws IOException {
+        if (!DatagramReceiveEvent.enabled()) {
+            return implRead(buf);
+        }
+        long start = DatagramReceiveEvent.timestamp();;
+        int bytesRead = implRead(buf);
+        DatagramReceiveEvent.filteredCommit(start, bytesRead, getRemoteAddress());
+        return bytesRead;
+    }
+
+    private int implRead(ByteBuffer buf) throws IOException {
         Objects.requireNonNull(buf);
 
         readLock.lock();
@@ -1063,6 +1107,18 @@ class DatagramChannelImpl
 
     @Override
     public long read(ByteBuffer[] dsts, int offset, int length)
+        throws IOException
+    {
+        if (!DatagramReceiveEvent.enabled()) {
+            return implRead(dsts, offset, length);
+        }
+        long start =  DatagramReceiveEvent.timestamp();
+        long bytesRead = implRead(dsts, offset, length);
+        DatagramReceiveEvent.filteredCommit(start, bytesRead, getRemoteAddress());
+        return bytesRead;
+    }
+
+    private long implRead(ByteBuffer[] dsts, int offset, int length)
         throws IOException
     {
         Objects.checkFromIndexSize(offset, length, dsts.length);
@@ -1148,6 +1204,16 @@ class DatagramChannelImpl
 
     @Override
     public int write(ByteBuffer buf) throws IOException {
+        if (!DatagramSendEvent.enabled()) {
+            return implWrite(buf);
+        }
+        long start = DatagramSendEvent.timestamp();
+        int nbytes = implWrite(buf);
+        DatagramSendEvent.filteredCommit(start, nbytes, getRemoteAddress());
+        return nbytes;
+    }
+
+    private int implWrite(ByteBuffer buf) throws IOException {
         Objects.requireNonNull(buf);
 
         writeLock.lock();
@@ -1176,6 +1242,18 @@ class DatagramChannelImpl
 
     @Override
     public long write(ByteBuffer[] srcs, int offset, int length)
+        throws IOException
+    {
+        if (!DatagramSendEvent.enabled()) {
+            return implWrite(srcs, offset, length);
+        }
+        long start = DatagramSendEvent.timestamp();
+        long nbytes = implWrite(srcs, offset, length);
+        DatagramSendEvent.filteredCommit(start, nbytes, getRemoteAddress());
+        return nbytes;
+    }
+
+    private long implWrite(ByteBuffer[] srcs, int offset, int length)
         throws IOException
     {
         Objects.checkFromIndexSize(offset, length, srcs.length);

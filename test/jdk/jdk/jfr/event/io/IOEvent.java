@@ -25,7 +25,9 @@ package jdk.jfr.event.io;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketAddress;
 
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordedThread;
@@ -75,23 +77,38 @@ public class IOEvent {
     public static final String EVENT_FILE_WRITE = EventNames.FileWrite;
     public static final String EVENT_SOCKET_READ = EventNames.SocketRead;
     public static final String EVENT_SOCKET_WRITE = EventNames.SocketWrite;
+    public static final String EVENT_DATAGRAM_RECEIVE = EventNames.DatagramReceive;
+    public static final String EVENT_DATAGRAM_SEND = EventNames.DatagramSend;
 
-    public enum EventType { UnknownEvent, FileForce, FileRead, FileWrite, SocketRead, SocketWrite }
+    public enum EventType { UnknownEvent, FileForce, FileRead, FileWrite, SocketRead, SocketWrite,
+        DatagramReceive, DatagramSend }
 
     private static final String[] eventPaths = {
-        EVENT_UNKNOWN, EVENT_FILE_FORCE, EVENT_FILE_READ, EVENT_FILE_WRITE, EVENT_SOCKET_READ, EVENT_SOCKET_WRITE
+        EVENT_UNKNOWN, EVENT_FILE_FORCE, EVENT_FILE_READ, EVENT_FILE_WRITE, EVENT_SOCKET_READ, EVENT_SOCKET_WRITE,
+            EVENT_DATAGRAM_RECEIVE, EVENT_DATAGRAM_SEND
     };
 
     public static boolean isWriteEvent(EventType eventType) {
-        return (eventType == EventType.SocketWrite || eventType == EventType.FileWrite);
+        return (eventType == EventType.DatagramSend || eventType == EventType.SocketWrite || eventType == EventType.FileWrite);
     }
 
     public static boolean isReadEvent(EventType eventType) {
-        return (eventType == EventType.SocketRead || eventType == EventType.FileRead);
+        return (eventType == EventType.DatagramReceive || eventType == EventType.SocketRead || eventType == EventType.FileRead);
     }
 
     public static boolean isFileEvent(EventType eventType) {
         return (eventType == EventType.FileForce || eventType == EventType.FileWrite || eventType == EventType.FileRead);
+    }
+
+    public static IOEvent createDatagramWriteEvent(long size, InetSocketAddress addr) {
+        return new IOEvent(Thread.currentThread().getName(), EventType.DatagramSend, Math.max(0,size), getAddressString(addr), false);
+    }
+
+    public static IOEvent createSocketWriteEvent(long size, SocketAddress sa) {
+        if (size < 0) {
+            size = 0;
+        }
+        return new IOEvent(Thread.currentThread().getName(), EventType.SocketWrite, size, getAddressString((InetSocketAddress) sa), false);
     }
 
     public static IOEvent createSocketWriteEvent(long size, Socket s) {
@@ -99,6 +116,19 @@ public class IOEvent {
             size = 0;
         }
         return new IOEvent(Thread.currentThread().getName(), EventType.SocketWrite, size, getAddress(s), false);
+    }
+
+    public static IOEvent createDatagramReadEvent(long size, InetSocketAddress addr) {
+        return new IOEvent(Thread.currentThread().getName(), EventType.DatagramReceive, Math.max(0,size), getAddressString(addr), false);
+    }
+
+    public static IOEvent createSocketReadEvent(long size, SocketAddress sa) {
+        boolean endOfStream = false;
+        if (size < 0) {
+            size = 0;
+            endOfStream = true;
+        }
+        return new IOEvent(Thread.currentThread().getName(), EventType.SocketRead, size, getAddressString((InetSocketAddress) sa), endOfStream);
     }
 
     public static IOEvent createSocketReadEvent(long size, Socket s) {
@@ -197,6 +227,14 @@ public class IOEvent {
         } else {
             return event.getValue("address") + ":"  + event.getValue("port");
         }
+    }
+
+    private static String getAddressString(InetSocketAddress isa) {
+        String hostString  = isa.getAddress().toString();
+        int delimiterIndex = hostString.lastIndexOf('/');
+        String host = hostString.substring(0, delimiterIndex);
+        String address = hostString.substring(delimiterIndex + 1);
+        return address + ":" + isa.getPort();
     }
 
     private static String getAddress(Socket s) {
