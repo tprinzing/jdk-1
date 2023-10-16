@@ -29,6 +29,8 @@ package jdk.internal.event;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.UnixDomainSocketAddress;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * A JFR event for socket read operations.  This event is mirrored in
@@ -114,12 +116,14 @@ public class SocketReadEvent extends Event {
      *
      * @param start  the start time
      * @param nbytes  how many bytes were transferred
-     * @param remote  the address of the remote socket
-     * @param timeout  maximum time to wait
+     * @param remoteFcn  supplies the address of the remote socket
+     * @param timeoutFcn  supplies maximum time to wait
      */
-    public static void offer(long start, long nbytes, SocketAddress remote, long timeout) {
+    public static void offer(long start, long nbytes, Supplier<SocketAddress> remoteFcn, Supplier<Integer> timeoutFcn) {
         long duration = timestamp() - start;
         if (shouldCommit(duration)) {
+            SocketAddress remote = (remoteFcn != null) ? remoteFcn.get() : null;
+            int timeout = (timeoutFcn != null) ? timeoutFcn.get() : 0;
             boolean eof = nbytes < 0 ? true : false;
             nbytes = nbytes < 0 ? 0 : nbytes;
             if (remote instanceof InetSocketAddress isa) {

@@ -494,7 +494,7 @@ class SocketChannelImpl
         }
         long start = SocketReadEvent.timestamp();
         int nbytes = implRead(buf);
-        SocketReadEvent.offer(start, nbytes, remoteAddress(), 0);
+        SocketReadEvent.offer(start, nbytes, this::remoteAddress, null);
         return nbytes;
     }
 
@@ -508,7 +508,7 @@ class SocketChannelImpl
         }
         long start = SocketReadEvent.timestamp();
         long nbytes = implRead(dsts, offset, length);
-        SocketReadEvent.offer(start, nbytes, remoteAddress(), 0);
+        SocketReadEvent.offer(start, nbytes, this::remoteAddress, null);
         return nbytes;
     }
 
@@ -619,7 +619,7 @@ class SocketChannelImpl
         }
         long start = SocketWriteEvent.timestamp();
         int nbytes = implWrite(buf);
-        SocketWriteEvent.offer(start, nbytes, remoteAddress());
+        SocketWriteEvent.offer(start, nbytes, this::remoteAddress);
         return nbytes;
     }
 
@@ -632,7 +632,7 @@ class SocketChannelImpl
         }
         long start = SocketWriteEvent.timestamp();
         long nbytes = implWrite(srcs, offset, length);
-        SocketWriteEvent.offer(start, nbytes, remoteAddress());
+        SocketWriteEvent.offer(start, nbytes, this::remoteAddress);
         return nbytes;
     }
 
@@ -1447,7 +1447,7 @@ class SocketChannelImpl
         }
         long start = SocketReadEvent.timestamp();
         int nbytes = implBlockingRead(b, off, len, nanos);
-        SocketReadEvent.offer(start, nbytes, remoteAddress(), 0);
+        SocketReadEvent.offer(start, nbytes, this::remoteAddress, null);
         return nbytes;
     }
 
@@ -1522,7 +1522,7 @@ class SocketChannelImpl
         }
         long start = SocketWriteEvent.timestamp();
         implBlockingWriteFully(b, off, len);
-        SocketWriteEvent.offer(start, len, remoteAddress());
+        SocketWriteEvent.offer(start, len, this::remoteAddress);
     }
 
     /**

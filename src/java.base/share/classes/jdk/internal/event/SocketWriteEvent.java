@@ -29,6 +29,7 @@ package jdk.internal.event;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.UnixDomainSocketAddress;
+import java.util.function.Supplier;
 
 /**
  * A JFR event for socket write operations.  This event is mirrored in
@@ -109,11 +110,12 @@ public class SocketWriteEvent extends Event {
      *
      * @param start  the start time
      * @param bytesWritten  how many bytes were sent
-     * @param remote  the address of the remote socket being written to
+     * @param remoteFcn  supplies the address of the remote socket being written to
      */
-    public static void offer(long start, long bytesWritten, SocketAddress remote) {
+    public static void offer(long start, long bytesWritten, Supplier<SocketAddress> remoteFcn) {
         long duration = timestamp() - start;
         if (shouldCommit(duration)) {
+            SocketAddress remote = (remoteFcn != null) ? remoteFcn.get() : null;
             long bytes = bytesWritten < 0 ? 0 : bytesWritten;
             if (remote instanceof InetSocketAddress isa) {
                 commit(start, duration, isa.getHostString(), isa.getAddress().getHostAddress(), isa.getPort(), bytes);
