@@ -137,7 +137,7 @@ public class SocketEventOverhead {
             try {
                 nbytes = write0();
             } finally {
-                SocketWriteEvent.offer(start, nbytes, getRemoteAddress());
+                SocketWriteEvent.offer(start, nbytes, this::getRemoteAddress);
             }
             return nbytes;
         }
@@ -155,7 +155,7 @@ public class SocketEventOverhead {
             try {
                 nbytes = read0();
             } finally {
-                SocketReadEvent.offer(start, nbytes, getRemoteAddress(), 0);
+                SocketReadEvent.offer(start, nbytes, this::getRemoteAddress, null);
             }
             return nbytes;
         }
