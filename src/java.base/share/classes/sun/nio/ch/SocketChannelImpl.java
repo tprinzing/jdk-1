@@ -1519,6 +1519,7 @@ class SocketChannelImpl
     void blockingWriteFully(byte[] b, int off, int len) throws IOException {
         if (! SocketWriteEvent.enabled()) {
             implBlockingWriteFully(b, off, len);
+            return;
         }
         long start = SocketWriteEvent.timestamp();
         implBlockingWriteFully(b, off, len);
