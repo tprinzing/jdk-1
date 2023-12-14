@@ -30,8 +30,23 @@ import java.util.List;
 import java.util.Properties;
 
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.event.ThrowableTracer;
 import jdk.jfr.Event;
-import jdk.jfr.events.*;
+import jdk.jfr.events.ActiveRecordingEvent;
+import jdk.jfr.events.ActiveSettingEvent;
+import jdk.jfr.events.ContainerIOUsageEvent;
+import jdk.jfr.events.ContainerConfigurationEvent;
+import jdk.jfr.events.ContainerCPUUsageEvent;
+import jdk.jfr.events.ContainerCPUThrottlingEvent;
+import jdk.jfr.events.ContainerMemoryUsageEvent;
+import jdk.jfr.events.DirectBufferStatisticsEvent;
+import jdk.jfr.events.FileForceEvent;
+import jdk.jfr.events.FileReadEvent;
+import jdk.jfr.events.FileWriteEvent;
+import jdk.jfr.events.InitialSecurityPropertyEvent;
+import jdk.jfr.events.SocketReadEvent;
+import jdk.jfr.events.SocketWriteEvent;
+
 import jdk.jfr.internal.JVM;
 import jdk.jfr.internal.LogLevel;
 import jdk.jfr.internal.LogTag;
@@ -42,22 +57,6 @@ import jdk.internal.platform.Container;
 import jdk.internal.platform.Metrics;
 
 public final class JDKEvents {
-    private static final Class<?>[] mirrorEventClasses = {
-        DatagramReceiveEvent.class,
-        DatagramSendEvent.class,
-        DeserializationEvent.class,
-        ProcessStartEvent.class,
-        SecurityPropertyModificationEvent.class,
-        SecurityProviderServiceEvent.class,
-        ThreadSleepEvent.class,
-        TLSHandshakeEvent.class,
-        VirtualThreadStartEvent.class,
-        VirtualThreadEndEvent.class,
-        VirtualThreadPinnedEvent.class,
-        VirtualThreadSubmitFailedEvent.class,
-        X509CertificateEvent.class,
-        X509ValidationEvent.class
-    };
 
     private static final Class<?>[] eventClasses = {
         FileForceEvent.class,
@@ -65,17 +64,21 @@ public final class JDKEvents {
         FileWriteEvent.class,
         SocketReadEvent.class,
         SocketWriteEvent.class,
-        ExceptionThrownEvent.class,
-        ExceptionStatisticsEvent.class,
-        ErrorThrownEvent.class,
         ActiveSettingEvent.class,
         ActiveRecordingEvent.class,
+        // jdk.internal.event.* classes need their mirror
+        // event class to be listed in the MirrorEvents class.
         jdk.internal.event.DatagramReceiveEvent.class,
         jdk.internal.event.DatagramSendEvent.class,
         jdk.internal.event.DeserializationEvent.class,
+        jdk.internal.event.ErrorThrownEvent.class,
+        jdk.internal.event.ExceptionStatisticsEvent.class,
+        jdk.internal.event.ExceptionThrownEvent.class,
         jdk.internal.event.ProcessStartEvent.class,
         jdk.internal.event.SecurityPropertyModificationEvent.class,
         jdk.internal.event.SecurityProviderServiceEvent.class,
+        jdk.internal.event.SocketReadEvent.class,
+        jdk.internal.event.SocketWriteEvent.class,
         jdk.internal.event.ThreadSleepEvent.class,
         jdk.internal.event.TLSHandshakeEvent.class,
         jdk.internal.event.VirtualThreadStartEvent.class,
@@ -84,7 +87,6 @@ public final class JDKEvents {
         jdk.internal.event.VirtualThreadSubmitFailedEvent.class,
         jdk.internal.event.X509CertificateEvent.class,
         jdk.internal.event.X509ValidationEvent.class,
-
         DirectBufferStatisticsEvent.class,
         InitialSecurityPropertyEvent.class,
     };
@@ -94,10 +96,7 @@ public final class JDKEvents {
         FileInputStreamInstrumentor.class,
         FileOutputStreamInstrumentor.class,
         RandomAccessFileInstrumentor.class,
-        FileChannelImplInstrumentor.class,
-        SocketInputStreamInstrumentor.class,
-        SocketOutputStreamInstrumentor.class,
-        SocketChannelImplInstrumentor.class
+        FileChannelImplInstrumentor.class
     };
 
     private static final Class<?>[] targetClasses = new Class<?>[instrumentationClasses.length];
@@ -116,17 +115,15 @@ public final class JDKEvents {
     public static synchronized void initialize() {
         try {
             if (initializationTriggered == false) {
-                for (Class<?> mirrorEventClass : mirrorEventClasses) {
-                    SecuritySupport.registerMirror(((Class<? extends Event>)mirrorEventClass));
-                }
                 for (Class<?> eventClass : eventClasses) {
                     SecuritySupport.registerEvent((Class<? extends Event>) eventClass);
                 }
-                PeriodicEvents.addJDKEvent(ExceptionStatisticsEvent.class, emitExceptionStatistics);
+                PeriodicEvents.addJDKEvent(jdk.internal.event.ExceptionStatisticsEvent.class, emitExceptionStatistics);
                 PeriodicEvents.addJDKEvent(DirectBufferStatisticsEvent.class, emitDirectBufferStatistics);
                 PeriodicEvents.addJDKEvent(InitialSecurityPropertyEvent.class, emitInitialSecurityProperties);
 
                 initializeContainerEvents();
+                ThrowableTracer.enable();
                 initializationTriggered = true;
             }
         } catch (Exception e) {
@@ -143,8 +140,6 @@ public final class JDKEvents {
                 targetClasses[i] = clazz;
                 list.add(clazz);
             }
-            list.add(java.lang.Throwable.class);
-            list.add(java.lang.Error.class);
             Logger.log(LogTag.JFR_SYSTEM, LogLevel.INFO, "Retransformed JDK classes");
             JVM.retransformClasses(list.toArray(new Class<?>[list.size()]));
         } catch (IllegalStateException ise) {
@@ -178,9 +173,7 @@ public final class JDKEvents {
     }
 
     private static void emitExceptionStatistics() {
-        ExceptionStatisticsEvent t = new ExceptionStatisticsEvent();
-        t.throwables = ThrowableTracer.numThrowables();
-        t.commit();
+        ThrowableTracer.emitStatistics();
     }
 
     private static void emitContainerConfiguration() {
@@ -243,16 +236,6 @@ public final class JDKEvents {
 
     @SuppressWarnings("deprecation")
     public static byte[] retransformCallback(Class<?> klass, byte[] oldBytes) throws Throwable {
-        if (java.lang.Throwable.class == klass) {
-            Logger.log(LogTag.JFR_SYSTEM, LogLevel.TRACE, "Instrumenting java.lang.Throwable");
-            return ConstructorTracerWriter.generateBytes(java.lang.Throwable.class, oldBytes);
-        }
-
-        if (java.lang.Error.class == klass) {
-            Logger.log(LogTag.JFR_SYSTEM, LogLevel.TRACE, "Instrumenting java.lang.Error");
-            return ConstructorTracerWriter.generateBytes(java.lang.Error.class, oldBytes);
-        }
-
         for (int i = 0; i < targetClasses.length; i++) {
             if (targetClasses[i].equals(klass)) {
                 Class<?> c = instrumentationClasses[i];
